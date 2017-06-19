@@ -14,6 +14,7 @@
 
 #include "gtest/gtest.h"
 
+#include "rcutils/error_handling.h"
 #include "rcutils/split.h"
 #include "rcutils/types/string_array.h"
 
@@ -28,7 +29,11 @@
 
 rcutils_string_array_t test_split(const char * str, char delimiter, size_t expected_token_size)
 {
-  rcutils_string_array_t tokens = rcutils_split(str, delimiter);
+  rcutils_string_array_t tokens = rcutils_get_zero_initialized_string_array();
+  rcutils_ret_t ret = rcutils_split(
+    str, delimiter, rcutils_get_default_allocator(), &tokens);
+  EXPECT_EQ(RCUTILS_RET_OK, ret);
+  fprintf(stderr, "Received %zu tokens\n", tokens.size);
   EXPECT_EQ(expected_token_size, tokens.size);
   for (size_t i = 0; i < tokens.size; ++i) {
     EXPECT_NE((size_t)0, strlen(tokens.data[i]));
@@ -39,7 +44,10 @@ rcutils_string_array_t test_split(const char * str, char delimiter, size_t expec
 rcutils_string_array_t test_split_last(
   const char * str, char delimiter, size_t expected_token_size)
 {
-  rcutils_string_array_t tokens = rcutils_split_last(str, delimiter);
+  rcutils_string_array_t tokens = rcutils_get_zero_initialized_string_array();
+  rcutils_ret_t ret = rcutils_split_last(
+    str, delimiter, rcutils_get_default_allocator(), &tokens);
+  EXPECT_EQ(RCUTILS_RET_OK, ret);
   EXPECT_EQ(expected_token_size, tokens.size);
   for (size_t i = 0; i < tokens.size; ++i) {
     EXPECT_NE((size_t)0, strlen(tokens.data[i]));
@@ -61,7 +69,7 @@ TEST(test_split, split) {
   rcutils_string_array_t tokens1 = test_split("hello_world", '/', 1);
   EXPECT_STREQ("hello_world", tokens1.data[0]);
   ret = rcutils_string_array_fini(&tokens1);
-  ASSERT_EQ(RCUTILS_RET_OK, ret);
+  ASSERT_EQ(RCUTILS_RET_OK, ret) << rcutils_get_error_string_safe();
 
   rcutils_string_array_t tokens2 = test_split("hello/world", '/', 2);
   EXPECT_STREQ("hello", tokens2.data[0]);
