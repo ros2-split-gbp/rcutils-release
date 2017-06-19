@@ -2,15 +2,22 @@ cmake_minimum_required(VERSION 3.5)
 
 project(rcutils)
 
+# Default to C11
+if(NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 11)
+endif()
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
+
 find_package(ament_cmake REQUIRED)
 
 include_directories(include)
 
 if(NOT WIN32)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
-  # The warning flags are added per target, because otherwise the local
-  # gmock library that is built will have compiler warnings.
-  set(rcutils_extra_warning_flags "-Wall -Wextra -Wpedantic")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 endif()
 
 if(WIN32)
@@ -28,6 +35,7 @@ set(rcutils_sources
   src/find.c
   src/format_string.c
   src/get_env.c
+  src/logging.c
   src/repl_str.c
   src/split.c
   src/strdup.c
@@ -39,14 +47,31 @@ set_source_files_properties(
   ${rcutils_sources}
   PROPERTIES language "C")
 
+# "watch" template for changes
+configure_file(
+  "resource/logging_macros.h.em"
+  "logging_macros.h.em.watch"
+  COPYONLY)
+# generate header with logging macros
+set(python_code
+  "import em"
+  "em.invoke(['-o', 'include/rcutils/logging_macros.h', '${CMAKE_CURRENT_SOURCE_DIR}/resource/logging_macros.h.em'])")
+string(REPLACE ";" "$<SEMICOLON>" python_code "${python_code}")
+add_custom_command(OUTPUT include/rcutils/logging_macros.h
+  COMMAND ${CMAKE_COMMAND} -E make_directory "include/rcutils"
+  COMMAND ${PYTHON_EXECUTABLE} ARGS -c "${python_code}"
+  DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/logging_macros.h.em.watch"
+  COMMENT "Expanding logging_macros.h.em"
+  VERBATIM
+)
+list(APPEND rcutils_sources
+  include/rcutils/logging_macros.h)
+include_directories("${CMAKE_CURRENT_BINARY_DIR}/include")
+
 add_library(
   ${PROJECT_NAME}
   SHARED
   ${rcutils_sources})
-if(rcutils_extra_warning_flags)
-  set_target_properties(${PROJECT_NAME}
-    PROPERTIES COMPILE_FLAGS ${rcutils_extra_warning_flags})
-endif()
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
@@ -69,12 +94,56 @@ if(BUILD_TESTING)
 
   find_package(ament_cmake_gmock REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_cmake_nose REQUIRED)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
+
+  if(ament_cmake_cppcheck_FOUND)
+    ament_cppcheck(
+      TESTNAME "cppcheck_logging_macros"
+    "${CMAKE_CURRENT_BINARY_DIR}/include/rcutils/logging_macros.h")
+  endif()
+  if(ament_cmake_cpplint_FOUND)
+    ament_cpplint(
+      TESTNAME "cpplint_logging_macros"
+      # the generated code might contain longer lines for templated types
+      MAX_LINE_LENGTH 999
+      ROOT "${CMAKE_CURRENT_BINARY_DIR}/include"
+    "${CMAKE_CURRENT_BINARY_DIR}/include/rcutils/logging_macros.h")
+  endif()
+  if(ament_cmake_uncrustify_FOUND)
+    ament_uncrustify(
+      TESTNAME "uncrustify_logging_macros"
+      # the generated code might contain longer lines for templated types
+      MAX_LINE_LENGTH 999
+    "${CMAKE_CURRENT_BINARY_DIR}/include/rcutils/logging_macros.h")
+  endif()
 
   set(extra_test_libraries)
   set(extra_test_env)
   set(extra_lib_dirs)
+
+  ament_add_gtest(test_logging test/test_logging.cpp
+    APPEND_LIBRARY_DIRS ${extra_lib_dirs})
+  target_link_libraries(test_logging ${PROJECT_NAME})
+
+  add_executable(test_logging_long_messages test/test_logging_long_messages.cpp)
+  target_link_libraries(test_logging_long_messages ${PROJECT_NAME})
+  ament_add_nose_test(test_logging_long_messages
+    "test/test_logging_long_messages.py"
+    APPEND_LIBRARY_DIRS ${extra_lib_dirs}
+    WORKING_DIRECTORY "$<TARGET_FILE_DIR:test_logging_long_messages>"
+    TIMEOUT 10)
+
+  ament_add_gmock(test_logging_macros test/test_logging_macros.cpp
+    APPEND_LIBRARY_DIRS ${extra_lib_dirs})
+  target_link_libraries(test_logging_macros ${PROJECT_NAME})
+
+  add_executable(test_logging_macros_c test/test_logging_macros.c)
+  target_link_libraries(test_logging_macros_c ${PROJECT_NAME})
+  ament_add_test(test_logging_macros_c
+    COMMAND "$<TARGET_FILE:test_logging_macros_c>"
+    GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
 
   # This subdirectory extends both extra_test_libraries, extra_test_env, and extra_lib_dirs.
   add_subdirectory(test/memory_tools)
@@ -86,16 +155,10 @@ if(BUILD_TESTING)
 
   macro(rcutils_custom_add_gtest target)
     ament_add_gtest(${target} ${ARGN})
-    if(TARGET ${target} AND rcutils_extra_warning_flags)
-      set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${rcutils_extra_warning_flags})
-    endif()
   endmacro()
 
   macro(rcutils_custom_add_gmock target)
     ament_add_gmock(${target} ${ARGN})
-    if(TARGET ${target} AND rcutils_extra_warning_flags)
-      set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${rcutils_extra_warning_flags})
-    endif()
   endmacro()
 
   # Gtests
@@ -211,5 +274,5 @@ ament_export_libraries(${PROJECT_NAME})
 ament_package()
 
 install(
-  DIRECTORY include/
+  DIRECTORY include/ ${CMAKE_CURRENT_BINARY_DIR}/include/
   DESTINATION include)
