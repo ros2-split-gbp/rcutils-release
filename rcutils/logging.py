@@ -18,16 +18,19 @@ severities = ('DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL')
 default_args = OrderedDict((
     ('condition_before', 'RCUTILS_LOG_CONDITION_EMPTY'),
     ('condition_after', 'RCUTILS_LOG_CONDITION_EMPTY'),
-    ('name', '""'),
+    # This is NULL and not an empty string to distinguish between nameless loggers and those with
+    # empty names.
+    ('name', 'NULL'),
 ))
 name_params = OrderedDict((
     ('name', 'The name of the logger'),
 ))
 name_args = {'name': 'name'}
+name_doc_lines = []
 once_args = {
     'condition_before': 'RCUTILS_LOG_CONDITION_ONCE_BEFORE',
     'condition_after': 'RCUTILS_LOG_CONDITION_ONCE_AFTER'}
-name_doc_lines = [
+once_doc_lines = [
     'All subsequent log calls except the first one are being ignored.']
 expression_params = OrderedDict((
     ('expression', 'The expression determining if the message should be logged'),
@@ -97,47 +100,48 @@ class Feature:
 
 
 feature_combinations = OrderedDict((
-    (get_suffix_from_features([]), Feature()),
-    (get_suffix_from_features(['named']), Feature(
+    ((), Feature()),
+    (('named'), Feature(
         params=name_params,
-        args=name_args)),
-    (get_suffix_from_features(['once']), Feature(
+        args=name_args,
+        doc_lines=name_doc_lines)),
+    (('once'), Feature(
         params=None,
         args=once_args,
-        doc_lines=name_doc_lines)),
-    (get_suffix_from_features(['once', 'named']), Feature(
+        doc_lines=once_doc_lines)),
+    (('once', 'named'), Feature(
         params=name_params,
         args={**once_args, **name_args},
-        doc_lines=name_doc_lines)),
-    (get_suffix_from_features(['expression']), Feature(
+        doc_lines=once_doc_lines + name_doc_lines)),
+    (('expression'), Feature(
         params=expression_params,
         args=expression_args,
         doc_lines=expression_doc_lines)),
-    (get_suffix_from_features(['expression', 'named']), Feature(
+    (('expression', 'named'), Feature(
         params=OrderedDict((*expression_params.items(), *name_params.items())),
         args={**expression_args, **name_args},
         doc_lines=expression_doc_lines + name_doc_lines)),
-    (get_suffix_from_features(['function']), Feature(
+    (('function'), Feature(
         params=function_params,
         args=function_args,
         doc_lines=function_doc_lines)),
-    (get_suffix_from_features(['function', 'named']), Feature(
+    (('function', 'named'), Feature(
         params=OrderedDict((*function_params.items(), *name_params.items())),
         args={**function_args, **name_args},
         doc_lines=function_doc_lines + name_doc_lines)),
-    (get_suffix_from_features(['skip_first']), Feature(
+    (('skip_first'), Feature(
         params=None,
         args=skipfirst_args,
         doc_lines=skipfirst_doc_lines)),
-    (get_suffix_from_features(['skip_first', 'named']), Feature(
+    (('skip_first', 'named'), Feature(
         params=name_params,
         args={**skipfirst_args, **name_args},
-        doc_lines=skipfirst_doc_lines)),
-    (get_suffix_from_features(['throttle']), Feature(
+        doc_lines=skipfirst_doc_lines + name_doc_lines)),
+    (('throttle'), Feature(
         params=throttle_params,
         args=throttle_args,
         doc_lines=throttle_doc_lines)),
-    (get_suffix_from_features(['skip_first', 'throttle']), Feature(
+    (('skip_first', 'throttle'), Feature(
         params=throttle_params,
         args={
             'condition_before': ' '.join([
@@ -147,11 +151,11 @@ feature_combinations = OrderedDict((
                 throttle_args['condition_after'], skipfirst_args['condition_after']]),
         },
         doc_lines=skipfirst_doc_lines + throttle_doc_lines)),
-    (get_suffix_from_features(['throttle', 'named']), Feature(
+    (('throttle', 'named'), Feature(
         params=OrderedDict((*throttle_params.items(), *name_params.items())),
         args={**throttle_args, **name_args},
-        doc_lines=throttle_doc_lines)),
-    (get_suffix_from_features(['skip_first', 'throttle', 'named']), Feature(
+        doc_lines=throttle_doc_lines + name_doc_lines)),
+    (('skip_first', 'throttle', 'named'), Feature(
         params=OrderedDict((*throttle_params.items(), *name_params.items())),
         args={
             **{
@@ -163,17 +167,17 @@ feature_combinations = OrderedDict((
                     skipfirst_args['condition_after']]),
             }, **name_args
         },
-        doc_lines=skipfirst_doc_lines + throttle_doc_lines)),
+        doc_lines=skipfirst_doc_lines + throttle_doc_lines + name_doc_lines)),
 ))
 
 
-def get_macro_parameters(suffix):
-    return feature_combinations[suffix].params
+def get_macro_parameters(feature_combination):
+    return feature_combinations[feature_combination].params
 
 
-def get_macro_arguments(suffix):
+def get_macro_arguments(feature_combination):
     args = []
     for k, default_value in default_args.items():
-        value = feature_combinations[suffix].args.get(k, default_value)
+        value = feature_combinations[feature_combination].args.get(k, default_value)
         args.append(value)
     return args

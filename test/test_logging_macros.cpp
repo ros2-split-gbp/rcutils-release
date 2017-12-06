@@ -43,10 +43,10 @@ public:
   {
     g_log_calls = 0;
     EXPECT_FALSE(g_rcutils_logging_initialized);
-    rcutils_logging_initialize();
+    ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
     EXPECT_TRUE(g_rcutils_logging_initialized);
-    g_rcutils_logging_severity_threshold = RCUTILS_LOG_SEVERITY_DEBUG;
-    EXPECT_EQ(RCUTILS_LOG_SEVERITY_DEBUG, g_rcutils_logging_severity_threshold);
+    g_rcutils_logging_default_logger_level = RCUTILS_LOG_SEVERITY_DEBUG;
+    EXPECT_EQ(RCUTILS_LOG_SEVERITY_DEBUG, g_rcutils_logging_default_logger_level);
 
     auto rcutils_logging_console_output_handler = [](
       rcutils_log_location_t * location,
@@ -108,18 +108,31 @@ TEST_F(TestLoggingMacros, test_logging_expression) {
 }
 
 int g_counter = 0;
+bool g_function_called = false;
 
-bool mod3()
+bool not_divisible_by_three()
 {
+  g_function_called = true;
   return (g_counter % 3) != 0;
 }
 
 TEST_F(TestLoggingMacros, test_logging_function) {
+  // check that evaluation of a specified function does not occur if the severity is not enabled
+  g_rcutils_logging_default_logger_level = RCUTILS_LOG_SEVERITY_INFO;
+  for (int i : {0, 1}) {  // cover both true and false return values
+    g_counter = i;
+    RCUTILS_LOG_DEBUG_FUNCTION(&not_divisible_by_three, "message %d", i);
+  }
+  EXPECT_EQ(0u, g_log_calls);
+  EXPECT_FALSE(g_function_called);
+  g_rcutils_logging_default_logger_level = RCUTILS_LOG_SEVERITY_DEBUG;
+
   for (int i : {1, 2, 3, 4, 5, 6}) {
     g_counter = i;
-    RCUTILS_LOG_INFO_FUNCTION(&mod3, "message %d", i);
+    RCUTILS_LOG_INFO_FUNCTION(&not_divisible_by_three, "message %d", i);
   }
   EXPECT_EQ(4u, g_log_calls);
+  EXPECT_TRUE(g_function_called);
   EXPECT_EQ("message 5", g_last_log_event.message);
 }
 
@@ -153,4 +166,19 @@ TEST_F(TestLoggingMacros, test_logging_skipfirst_throttle) {
   EXPECT_EQ(RCUTILS_LOG_SEVERITY_FATAL, g_last_log_event.level);
   EXPECT_EQ("", g_last_log_event.name);
   EXPECT_EQ("throttled message 8", g_last_log_event.message);
+}
+
+TEST_F(TestLoggingMacros, test_logger_hierarchy) {
+  ASSERT_EQ(
+    RCUTILS_RET_OK,
+    rcutils_logging_set_logger_level(
+      "rcutils_test_logging_macros_cpp", RCUTILS_LOG_SEVERITY_WARN));
+  RCUTILS_LOG_INFO_NAMED("rcutils_test_logging_macros_cpp.testing.x.y.x", "message");
+  // check that no call was made to the underlying log function
+  EXPECT_EQ(0u, g_log_calls);
+
+  // check that nameless log calls get the default level
+  rcutils_logging_set_default_logger_level(RCUTILS_LOG_SEVERITY_INFO);
+  RCUTILS_LOG_DEBUG("message");
+  EXPECT_EQ(0u, g_log_calls);
 }

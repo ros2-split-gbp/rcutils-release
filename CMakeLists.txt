@@ -50,10 +50,14 @@ set_source_files_properties(
   ${rcutils_sources}
   PROPERTIES language "C")
 
-# "watch" template for changes
+# "watch" template/inputs for changes
 configure_file(
   "resource/logging_macros.h.em"
   "logging_macros.h.em.watch"
+  COPYONLY)
+configure_file(
+  "rcutils/logging.py"
+  "logging.py.watch"
   COPYONLY)
 # generate header with logging macros
 set(rcutils_module_path ${CMAKE_CURRENT_SOURCE_DIR})
@@ -64,7 +68,7 @@ string(REPLACE ";" "$<SEMICOLON>" python_code "${python_code}")
 add_custom_command(OUTPUT include/rcutils/logging_macros.h
   COMMAND ${CMAKE_COMMAND} -E make_directory "include/rcutils"
   COMMAND ${PYTHON_EXECUTABLE} ARGS -c "${python_code}"
-  DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/logging_macros.h.em.watch"
+  DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/logging_macros.h.em.watch" "${CMAKE_CURRENT_BINARY_DIR}/logging.py.watch"
   COMMENT "Expanding logging_macros.h.em"
   VERBATIM
 )
@@ -98,7 +102,7 @@ if(BUILD_TESTING)
 
   find_package(ament_cmake_gmock REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
-  find_package(ament_cmake_nose REQUIRED)
+  find_package(ament_cmake_pytest REQUIRED)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
 
@@ -133,8 +137,14 @@ if(BUILD_TESTING)
 
   add_executable(test_logging_long_messages test/test_logging_long_messages.cpp)
   target_link_libraries(test_logging_long_messages ${PROJECT_NAME})
-  ament_add_nose_test(test_logging_long_messages
+  ament_add_pytest_test(test_logging_long_messages
     "test/test_logging_long_messages.py"
+    APPEND_LIBRARY_DIRS ${extra_lib_dirs}
+    WORKING_DIRECTORY "$<TARGET_FILE_DIR:test_logging_long_messages>"
+    TIMEOUT 10)
+
+  ament_add_pytest_test(test_logging_output_format
+    "test/test_logging_output_format.py"
     APPEND_LIBRARY_DIRS ${extra_lib_dirs}
     WORKING_DIRECTORY "$<TARGET_FILE_DIR:test_logging_long_messages>"
     TIMEOUT 10)

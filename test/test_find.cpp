@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stdint.h>
+
 #include "gtest/gtest.h"
 
 #include "rcutils/find.h"
@@ -19,15 +21,26 @@
 #define ENABLE_LOGGING 1
 
 #if ENABLE_LOGGING
-#define LOG(expected, actual) { \
-    printf("Expected: %zu Actual: %zu\n", expected, actual); }
+#define LOG(expected, actual) do { \
+    printf("Expected: %zu Actual: %zu\n", expected, actual); \
+} while (0)
 #else
-#define LOG(X, arg) {}
+#define LOG(X, arg) do { \
+    (void)(X); \
+    (void)(arg); \
+} while (0)
 #endif
 
 size_t test_find(const char * str, char delimiter, size_t expected_pos)
 {
   size_t actual_pos = rcutils_find(str, delimiter);
+  EXPECT_EQ(expected_pos, actual_pos);
+  return actual_pos;
+}
+
+size_t test_findn(const char * str, char delimiter, size_t str_len, size_t expected_pos)
+{
+  size_t actual_pos = rcutils_findn(str, delimiter, str_len);
   EXPECT_EQ(expected_pos, actual_pos);
   return actual_pos;
 }
@@ -39,15 +52,27 @@ size_t test_find_last(const char * str, char delimiter, size_t expected_pos)
   return actual_pos;
 }
 
+size_t test_find_lastn(const char * str, char delimiter, size_t str_len, size_t expected_pos)
+{
+  size_t actual_pos = rcutils_find_lastn(str, delimiter, str_len);
+  EXPECT_EQ(expected_pos, actual_pos);
+  return actual_pos;
+}
+
 TEST(test_find, find) {
-  size_t ret0 = test_find("", '/', 0);
-  LOG((size_t)0, ret0);
+  size_t ret0 = test_find("", '/', SIZE_MAX);
+  // We cast SIZE_MAX to a size_t here (and below) to shut up warnings on macOS.
+  // The problem on macOS is that size_t is a long unsigned int, while SIZE_MAX
+  // is an unsigned long long.  While the two are compatible on 64-bit, they are
+  // not considered the "same" by the compiler, and throw a warning.  Just cast
+  // SIZE_MAX to size_t to make the compiler happy.
+  LOG((size_t)SIZE_MAX, ret0);
 
-  size_t ret00 = test_find(NULL, '/', 0);
-  LOG((size_t)0, ret00);
+  size_t ret00 = test_find(NULL, '/', SIZE_MAX);
+  LOG((size_t)SIZE_MAX, ret00);
 
-  size_t ret1 = test_find("hello_world", '/', strlen("hello_world"));
-  LOG(strlen("hello_world"), ret1);
+  size_t ret1 = test_find("hello_world", '/', SIZE_MAX);
+  LOG((size_t)SIZE_MAX, ret1);
 
   size_t ret2 = test_find("hello/world", '/', 5);
   LOG((size_t)5, ret2);
@@ -65,15 +90,32 @@ TEST(test_find, find) {
   LOG((size_t)0, ret6);
 }
 
+TEST(test_find, findn) {
+  size_t ret0 = test_findn("", '/', 0, SIZE_MAX);
+  LOG((size_t)SIZE_MAX, ret0);
+
+  size_t ret1 = test_findn(NULL, '/', 10, SIZE_MAX);
+  LOG((size_t)SIZE_MAX, ret1);
+
+  size_t ret2 = test_findn("hello_world", '/', strlen("hello_world"), SIZE_MAX);
+  LOG((size_t)SIZE_MAX, ret2);
+
+  size_t ret3 = test_findn("hello/world", '/', strlen("hello/world"), 5);
+  LOG((size_t)5, ret3);
+
+  size_t ret4 = test_findn("hello///", '/', strlen("hello/"), 5);
+  LOG((size_t)5, ret4);
+}
+
 TEST(test_find, find_last) {
-  size_t ret0 = test_find_last("", '/', 0);
-  LOG((size_t)0, ret0);
+  size_t ret0 = test_find_last("", '/', SIZE_MAX);
+  LOG((size_t)SIZE_MAX, ret0);
 
-  size_t ret00 = test_find_last(NULL, '/', 0);
-  LOG((size_t)0, ret00);
+  size_t ret00 = test_find_last(NULL, '/', SIZE_MAX);
+  LOG((size_t)SIZE_MAX, ret00);
 
-  size_t ret1 = test_find_last("hello_world", '/', strlen("hello_world"));
-  LOG(strlen("hello_world"), ret1);
+  size_t ret1 = test_find_last("hello_world", '/', SIZE_MAX);
+  LOG((size_t)SIZE_MAX, ret1);
 
   size_t ret2 = test_find_last("hello/world", '/', 5);
   LOG((size_t)5, ret2);
@@ -89,4 +131,25 @@ TEST(test_find, find_last) {
 
   size_t ret6 = test_find_last("/hello//world", '/', 7);
   LOG((size_t)7, ret6);
+}
+
+TEST(test_find, find_lastn) {
+  size_t ret0 = test_find_lastn("", '/', 0, SIZE_MAX);
+  LOG((size_t)SIZE_MAX, ret0);
+
+  size_t ret1 = test_find_lastn(NULL, '/', 10, SIZE_MAX);
+  LOG((size_t)SIZE_MAX, ret1);
+
+  size_t ret2 = test_find_lastn("hello_world", '/', strlen("hello_world"), SIZE_MAX);
+  LOG((size_t)SIZE_MAX, ret2);
+
+  size_t ret3 = test_find_lastn("hello/world", '/', strlen("hello/world"), 5);
+  LOG((size_t)5, ret3);
+
+  size_t ret4 = test_find_lastn("/hello/world", '/', strlen("/hello"), 0);
+  LOG((size_t)0, ret4);
+
+  size_t ret5 = test_find_lastn(
+    "hello/world///", '/', strlen("hello/world/"), strlen("hello/world/") - 1);
+  LOG((size_t)strlen("hello/world/") - 1, ret5);
 }

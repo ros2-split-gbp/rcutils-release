@@ -29,18 +29,31 @@ extern "C"
 {
 #endif
 
+// These are used for compiling out logging macros lower than a minimum severity.
+#define RCUTILS_LOG_MIN_SEVERITY_DEBUG 0
+#define RCUTILS_LOG_MIN_SEVERITY_INFO 1
+#define RCUTILS_LOG_MIN_SEVERITY_WARN 2
+#define RCUTILS_LOG_MIN_SEVERITY_ERROR 3
+#define RCUTILS_LOG_MIN_SEVERITY_FATAL 4
+#define RCUTILS_LOG_MIN_SEVERITY_NONE 5
+
 /**
  * \def RCUTILS_LOG_MIN_SEVERITY
- * Define RCUTILS_LOG_MIN_SEVERITY=RCUTILS_LOG_SEVERITY_[DEBUG|INFO|WARN|ERROR|FATAL]
+ * Define RCUTILS_LOG_MIN_SEVERITY=RCUTILS_LOG_MIN_SEVERITY_[DEBUG|INFO|WARN|ERROR|FATAL]
  * in your build options to compile out anything below that severity.
+ * Use RCUTILS_LOG_MIN_SEVERITY_NONE to compile out all macros.
  */
 #ifndef RCUTILS_LOG_MIN_SEVERITY
-#define RCUTILS_LOG_MIN_SEVERITY RCUTILS_LOG_SEVERITY_DEBUG
+#define RCUTILS_LOG_MIN_SEVERITY RCUTILS_LOG_MIN_SEVERITY_DEBUG
 #endif
 
+// TODO(dhood): optimise severity check via notifyLoggerLevelsChanged concept or similar.
 /**
  * \def RCUTILS_LOG_COND_NAMED
  * The logging macro all other logging macros call directly or indirectly.
+ *
+ * \note The condition will only be evaluated if this logging statement is enabled.
+ *
  * \param severity The severity level
  * \param condition_before The condition macro(s) inserted before the log call
  * \param condition_after The condition macro(s) inserted after the log call
@@ -51,11 +64,11 @@ extern "C"
   { \
     RCUTILS_LOGGING_AUTOINIT \
     static rcutils_log_location_t __rcutils_logging_location = {__func__, __FILE__, __LINE__}; \
-    condition_before \
-    if (severity >= g_rcutils_logging_severity_threshold) { \
+    if (rcutils_logging_logger_is_enabled_for(name, severity)) { \
+      condition_before \
       rcutils_log(&__rcutils_logging_location, severity, name, __VA_ARGS__); \
+      condition_after \
     } \
-    condition_after \
   }
 
 ///@@{
@@ -188,41 +201,47 @@ sys.path.insert(0, rcutils_module_path)
 from rcutils.logging import feature_combinations
 from rcutils.logging import get_macro_arguments
 from rcutils.logging import get_macro_parameters
+from rcutils.logging import get_suffix_from_features
 from rcutils.logging import severities
 }@
 @[for severity in severities]@
 /** @@name Logging macros for severity @(severity).
  */
 ///@@{
-#if (RCUTILS_LOG_MIN_SEVERITY > RCUTILS_LOG_SEVERITY_@(severity))
+#if (RCUTILS_LOG_MIN_SEVERITY > RCUTILS_LOG_MIN_SEVERITY_@(severity))
 // empty logging macros for severity @(severity) when being disabled at compile time
-@[ for suffix in feature_combinations]@
+@[ for feature_combination in feature_combinations]@
+@{suffix = get_suffix_from_features(feature_combination)}@
 /// Empty logging macro due to the preprocessor definition of RCUTILS_LOG_MIN_SEVERITY.
-# define RCUTILS_LOG_@(severity)@(suffix)(@(''.join([p + ', ' for p in get_macro_parameters(suffix).keys()]))format, ...)
+# define RCUTILS_LOG_@(severity)@(suffix)(@(''.join([p + ', ' for p in get_macro_parameters(feature_combination).keys()]))format, ...)
 @[ end for]@
 
 #else
-@[ for suffix in feature_combinations]@
+@[ for feature_combination in feature_combinations]@
+@{suffix = get_suffix_from_features(feature_combination)}@
 /**
  * \def RCUTILS_LOG_@(severity)@(suffix)
  * Log a message with severity @(severity)@
-@[ if feature_combinations[suffix].doc_lines]@
+@[ if feature_combinations[feature_combination].doc_lines]@
  with the following conditions:
+@[   for doc_line in feature_combinations[feature_combination].doc_lines]@
+ * - @(doc_line)
+@[   end for]@
+ *
+ * \note The conditions will only be evaluated if this logging statement is enabled.
+ *
 @[ else]@
 .
 @[ end if]@
-@[ for doc_line in feature_combinations[suffix].doc_lines]@
- * @(doc_line)
-@[ end for]@
-@[ for param_name, doc_line in feature_combinations[suffix].params.items()]@
+@[ for param_name, doc_line in feature_combinations[feature_combination].params.items()]@
  * \param @(param_name) @(doc_line)
 @[ end for]@
  * \param ... The format string, followed by the variable arguments for the format string
  */
-# define RCUTILS_LOG_@(severity)@(suffix)(@(''.join([p + ', ' for p in get_macro_parameters(suffix).keys()]))...) \
+# define RCUTILS_LOG_@(severity)@(suffix)(@(''.join([p + ', ' for p in get_macro_parameters(feature_combination).keys()]))...) \
   RCUTILS_LOG_COND_NAMED( \
     RCUTILS_LOG_SEVERITY_@(severity), \
-    @(''.join([str(a) + ', ' for a in get_macro_arguments(suffix)]))\
+    @(''.join([str(a) + ', ' for a in get_macro_arguments(feature_combination)]))\
     __VA_ARGS__)
 @[ end for]@
 #endif

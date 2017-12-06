@@ -353,13 +353,34 @@ rcutils_string_map_unset(rcutils_string_map_t * string_map, const char * key)
   rcutils_allocator_t allocator = string_map->impl->allocator;
   size_t key_index;
   if (!__get_index_of_key_if_exists(string_map->impl, key, strlen(key), &key_index)) {
-    char * msg = rcutils_format_string(allocator, "key '%s' not found", key);
-    RCUTILS_SET_ERROR_MSG(msg, allocator)
-    allocator.deallocate(msg, allocator.state);
+    RCUTILS_SET_ERROR_MSG_WITH_FORMAT_STRING(allocator, "key '%s' not found", key);
     return RCUTILS_RET_STRING_KEY_NOT_FOUND;
   }
   __remove_key_and_value_at_index(string_map->impl, key_index);
   return RCUTILS_RET_OK;
+}
+
+bool
+rcutils_string_map_key_exists(const rcutils_string_map_t * string_map, const char * key)
+{
+  if (!key) {
+    return false;
+  }
+  return rcutils_string_map_key_existsn(string_map, key, strlen(key));
+}
+
+bool
+rcutils_string_map_key_existsn(
+  const rcutils_string_map_t * string_map,
+  const char * key,
+  size_t key_length)
+{
+  if (!string_map || !string_map->impl || !key) {
+    return false;
+  }
+  size_t key_index;
+  bool key_exists = __get_index_of_key_if_exists(string_map->impl, key, key_length, &key_index);
+  return key_exists;
 }
 
 const char *

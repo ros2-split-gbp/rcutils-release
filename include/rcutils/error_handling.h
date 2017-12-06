@@ -24,6 +24,9 @@ extern "C"
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "rcutils/allocator.h"
 #include "rcutils/macros.h"
@@ -38,6 +41,15 @@ typedef struct rcutils_error_state_t
   size_t line_number;
   rcutils_allocator_t allocator;
 } rcutils_error_state_t;
+
+// TODO(dhood): use __STDC_LIB_EXT1__ if/when supported in other implementations.
+#if defined(_WIN32)
+// Limit the buffer size in the `fwrite` call to give an upper bound to buffer overrun in the case
+// of non-null terminated `msg`.
+#define RCUTILS_SAFE_FWRITE_TO_STDERR(msg) fwrite(msg, sizeof(char), strnlen_s(msg, 4096), stderr)
+#else
+#define RCUTILS_SAFE_FWRITE_TO_STDERR(msg) fwrite(msg, sizeof(char), strlen(msg), stderr)
+#endif
 
 /// Copy an error state into a destination error state.
 /**
@@ -89,6 +101,35 @@ void
 rcutils_set_error_state(
   const char * error_msg, const char * file, size_t line_number, rcutils_allocator_t allocator);
 
+/// Check an argument for a null value.
+/**
+ * If the argument's value is `NULL`, set the error message saying so and
+ * return the `error_return_type`.
+ *
+ * \param[in] argument The argument to test.
+ * \param[in] error_return_type The type to return if the argument is `NULL`.
+ * \param[in] allocator The allocator to use if an error message needs to be allocated.
+ */
+#define RCUTILS_CHECK_ARGUMENT_FOR_NULL(argument, error_return_type, allocator) \
+  RCUTILS_CHECK_FOR_NULL_WITH_MSG(argument, #argument " argument is null", \
+    return error_return_type, allocator)
+
+/// Check a value for null, with an error message and error statement.
+/**
+ * If `value` is `NULL`, the error statement will be evaluated after
+ * setting the error message.
+ *
+ * \param[in] value The value to test.
+ * \param[in] msg The error message if `value` is `NULL`.
+ * \param[in] error_statement The statement to evaluate if `value` is `NULL`.
+ * \param[in] allocator The allocator to use if an error message needs to be allocated.
+ */
+#define RCUTILS_CHECK_FOR_NULL_WITH_MSG(value, msg, error_statement, allocator) \
+  if (!(value)) { \
+    RCUTILS_SET_ERROR_MSG(msg, allocator); \
+    error_statement; \
+  }
+
 /// Set the error message, as well as append the current file and line number.
 /**
  * If an error message was previously set, and rcutils_reset_error() was not called
@@ -102,6 +143,27 @@ rcutils_set_error_state(
  */
 #define RCUTILS_SET_ERROR_MSG(msg, allocator) \
   rcutils_set_error_state(msg, __FILE__, __LINE__, allocator);
+
+/// Set the error message using a format string and format arguments.
+/**
+ * This function sets the error message using the given format string and
+ * then frees the memory allocated during the string formatting.
+ *
+ * \param[in] allocator The allocator to be used when allocating space for the error state.
+ * \param[in] format_string The string to be used as the format of the error message.
+ * \param[in] ... Arguments for the format string.
+ */
+#define RCUTILS_SET_ERROR_MSG_WITH_FORMAT_STRING(allocator, format_string, ...) \
+  do { \
+    char * output_msg = NULL; \
+    output_msg = rcutils_format_string(allocator, format_string, __VA_ARGS__); \
+    if (output_msg) { \
+      RCUTILS_SET_ERROR_MSG(output_msg, allocator); \
+      allocator.deallocate(output_msg, allocator.state); \
+    } else { \
+      RCUTILS_SAFE_FWRITE_TO_STDERR("Failed to allocate memory for error message\n"); \
+    } \
+  } while (false)
 
 /// Return `true` if the error is set, otherwise `false`.
 RCUTILS_PUBLIC
