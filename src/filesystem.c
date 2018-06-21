@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
+#include "rcutils/filesystem.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,21 +27,21 @@ extern "C"
 #else
 #include <direct.h>
 #endif  // _WIN32
-#include "rcutils/concat.h"
-#include "rcutils/filesystem.h"
+
+#include "rcutils/format_string.h"
 
 bool
 rcutils_get_cwd(char * buffer, size_t max_length)
 {
-  if (!buffer) {
+  if (NULL == buffer) {
     return false;
   }
 #ifdef _WIN32
-  if (!_getcwd(buffer, (int)max_length)) {
+  if (NULL == _getcwd(buffer, (int)max_length)) {
     return false;
   }
 #else
-  if (!getcwd(buffer, max_length)) {
+  if (NULL == getcwd(buffer, max_length)) {
     return false;
   }
 #endif  // _WIN32
@@ -142,12 +143,15 @@ rcutils_is_readable_and_writable(const char * abs_path)
 }
 
 char *
-rcutils_join_path(const char * left_hand_path, const char * right_hand_path)
+rcutils_join_path(
+  const char * left_hand_path,
+  const char * right_hand_path,
+  rcutils_allocator_t allocator)
 {
-  if (!left_hand_path) {
+  if (NULL == left_hand_path) {
     return NULL;
   }
-  if (!right_hand_path) {
+  if (NULL == right_hand_path) {
     return NULL;
   }
 
@@ -157,9 +161,9 @@ rcutils_join_path(const char * left_hand_path, const char * right_hand_path)
   const char * delimiter = "/";
 #endif  // _WIN32
 
-  return rcutils_concat(left_hand_path, right_hand_path, delimiter);
+  return rcutils_format_string(allocator, "%s%s%s", left_hand_path, delimiter, right_hand_path);
 }
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif

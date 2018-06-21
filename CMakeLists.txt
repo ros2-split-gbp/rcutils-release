@@ -11,8 +11,8 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
+find_package(ament_cmake_ros REQUIRED)
 
 ament_python_install_package(${PROJECT_NAME})
 
@@ -32,7 +32,6 @@ endif()
 set(rcutils_sources
   src/allocator.c
   src/cmdline_parser.c
-  src/concat.c
   src/error_handling.c
   src/filesystem.c
   src/find.c
@@ -40,10 +39,12 @@ set(rcutils_sources
   src/get_env.c
   src/logging.c
   src/repl_str.c
+  src/snprintf.c
   src/split.c
   src/strdup.c
   src/string_array.c
   src/string_map.c
+  src/time.c
   ${time_impl_c}
 )
 set_source_files_properties(
@@ -62,13 +63,22 @@ configure_file(
 # generate header with logging macros
 set(rcutils_module_path ${CMAKE_CURRENT_SOURCE_DIR})
 set(python_code
-  "import em"
-  "em.invoke(['-o', 'include/rcutils/logging_macros.h', '-D', 'rcutils_module_path=\"${rcutils_module_path}\"', '${CMAKE_CURRENT_SOURCE_DIR}/resource/logging_macros.h.em'])")
+  "import em"  # implicitly added ; between python statements due to CMake list
+  "\
+em.invoke( \
+  [ \
+    '-o', 'include/rcutils/logging_macros.h', \
+    '-D', 'rcutils_module_path=\"${rcutils_module_path}\"', \
+    '${CMAKE_CURRENT_SOURCE_DIR}/resource/logging_macros.h.em' \
+  ] \
+)")
 string(REPLACE ";" "$<SEMICOLON>" python_code "${python_code}")
 add_custom_command(OUTPUT include/rcutils/logging_macros.h
   COMMAND ${CMAKE_COMMAND} -E make_directory "include/rcutils"
   COMMAND ${PYTHON_EXECUTABLE} ARGS -c "${python_code}"
-  DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/logging_macros.h.em.watch" "${CMAKE_CURRENT_BINARY_DIR}/logging.py.watch"
+  DEPENDS
+    "${CMAKE_CURRENT_BINARY_DIR}/logging_macros.h.em.watch"
+    "${CMAKE_CURRENT_BINARY_DIR}/logging.py.watch"
   COMMENT "Expanding logging_macros.h.em"
   VERBATIM
 )
@@ -78,7 +88,6 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}/include")
 
 add_library(
   ${PROJECT_NAME}
-  SHARED
   ${rcutils_sources})
 
 # Causes the visibility macros to use dllexport rather than dllimport,
@@ -109,7 +118,7 @@ if(BUILD_TESTING)
   if(ament_cmake_cppcheck_FOUND)
     ament_cppcheck(
       TESTNAME "cppcheck_logging_macros"
-    "${CMAKE_CURRENT_BINARY_DIR}/include/rcutils/logging_macros.h")
+      "${CMAKE_CURRENT_BINARY_DIR}/include/rcutils/logging_macros.h")
   endif()
   if(ament_cmake_cpplint_FOUND)
     ament_cpplint(
@@ -117,40 +126,36 @@ if(BUILD_TESTING)
       # the generated code might contain longer lines for templated types
       MAX_LINE_LENGTH 999
       ROOT "${CMAKE_CURRENT_BINARY_DIR}/include"
-    "${CMAKE_CURRENT_BINARY_DIR}/include/rcutils/logging_macros.h")
+      "${CMAKE_CURRENT_BINARY_DIR}/include/rcutils/logging_macros.h")
   endif()
   if(ament_cmake_uncrustify_FOUND)
     ament_uncrustify(
       TESTNAME "uncrustify_logging_macros"
       # the generated code might contain longer lines for templated types
       MAX_LINE_LENGTH 999
-    "${CMAKE_CURRENT_BINARY_DIR}/include/rcutils/logging_macros.h")
+      "${CMAKE_CURRENT_BINARY_DIR}/include/rcutils/logging_macros.h")
   endif()
 
-  set(extra_test_libraries)
-  set(extra_test_env)
-  set(extra_lib_dirs)
+  find_package(osrf_testing_tools_cpp REQUIRED)
+  get_target_property(memory_tools_test_env_vars
+    osrf_testing_tools_cpp::memory_tools LIBRARY_PRELOAD_ENVIRONMENT_VARIABLE)
 
-  ament_add_gtest(test_logging test/test_logging.cpp
-    APPEND_LIBRARY_DIRS ${extra_lib_dirs})
+  ament_add_gtest(test_logging test/test_logging.cpp)
   target_link_libraries(test_logging ${PROJECT_NAME})
 
   add_executable(test_logging_long_messages test/test_logging_long_messages.cpp)
   target_link_libraries(test_logging_long_messages ${PROJECT_NAME})
   ament_add_pytest_test(test_logging_long_messages
     "test/test_logging_long_messages.py"
-    APPEND_LIBRARY_DIRS ${extra_lib_dirs}
     WORKING_DIRECTORY "$<TARGET_FILE_DIR:test_logging_long_messages>"
     TIMEOUT 10)
 
   ament_add_pytest_test(test_logging_output_format
     "test/test_logging_output_format.py"
-    APPEND_LIBRARY_DIRS ${extra_lib_dirs}
     WORKING_DIRECTORY "$<TARGET_FILE_DIR:test_logging_long_messages>"
     TIMEOUT 10)
 
-  ament_add_gmock(test_logging_macros test/test_logging_macros.cpp
-    APPEND_LIBRARY_DIRS ${extra_lib_dirs})
+  ament_add_gmock(test_logging_macros test/test_logging_macros.cpp)
   target_link_libraries(test_logging_macros ${PROJECT_NAME})
 
   add_executable(test_logging_macros_c test/test_logging_macros.c)
@@ -159,12 +164,15 @@ if(BUILD_TESTING)
     COMMAND "$<TARGET_FILE:test_logging_macros_c>"
     GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
 
-  # This subdirectory extends both extra_test_libraries, extra_test_env, and extra_lib_dirs.
-  add_subdirectory(test/memory_tools)
-
-  set(SKIP_TEST_IF_WIN32 "")
-  if(WIN32)  # (memory tools doesn't do anything on Windows)
-    set(SKIP_TEST_IF_WIN32 "SKIP_TEST")
+  set(SKIP_TEST_IF_WIN32_OR_AARCH64 "")
+  if(WIN32)
+    # (memory tools doesn't do anything on Windows)
+    set(SKIP_TEST_IF_WIN32_OR_AARCH64 "SKIP_TEST")
+  endif()
+  # TODO(wjwwood): reenable for ARM (aarch64) when fixed in osrf_testing_tools_cpp
+  # see: https://github.com/osrf/osrf_testing_tools_cpp/issues/3
+  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+    set(SKIP_TEST_IF_WIN32_OR_AARCH64 "SKIP_TEST")
   endif()
 
   macro(rcutils_custom_add_gtest target)
@@ -177,12 +185,11 @@ if(BUILD_TESTING)
 
   # Gtests
   rcutils_custom_add_gtest(test_allocator test/test_allocator.cpp
-    ENV ${extra_test_env}
-    APPEND_LIBRARY_DIRS ${extra_lib_dirs}
-    ${SKIP_TEST_IF_WIN32}
+    ENV ${memory_tools_test_env_vars}
+    ${SKIP_TEST_IF_WIN32_OR_AARCH64}
   )
   if(TARGET test_allocator)
-    target_link_libraries(test_allocator ${PROJECT_NAME} ${extra_test_libraries})
+    target_link_libraries(test_allocator ${PROJECT_NAME} osrf_testing_tools_cpp::memory_tools)
   endif()
 
   rcutils_custom_add_gmock(test_error_handling test/test_error_handling.cpp
@@ -207,13 +214,6 @@ if(BUILD_TESTING)
     target_link_libraries(test_find ${PROJECT_NAME})
   endif()
 
-  rcutils_custom_add_gtest(test_concat
-    test/test_concat.cpp
-  )
-  if(TARGET test_concat)
-    target_link_libraries(test_concat ${PROJECT_NAME})
-  endif()
-
   rcutils_custom_add_gtest(test_string_array
     test/test_string_array.cpp
   )
@@ -235,6 +235,7 @@ if(BUILD_TESTING)
     test/test_filesystem.cpp
   )
   if(TARGET test_filesystem)
+    target_include_directories(test_filesystem PUBLIC ${osrf_testing_tools_cpp_INCLUDE_DIRS})
     target_link_libraries(test_filesystem ${PROJECT_NAME})
   endif()
 
@@ -275,10 +276,16 @@ if(BUILD_TESTING)
 
   rcutils_custom_add_gtest(test_time
     test/test_time.cpp
-    ENV ${extra_test_env}
-    APPEND_LIBRARY_DIRS ${extra_lib_dirs})
+    ENV ${memory_tools_test_env_vars})
   if(TARGET test_time)
-    target_link_libraries(test_time ${PROJECT_NAME} ${extra_test_libraries})
+    target_link_libraries(test_time ${PROJECT_NAME} osrf_testing_tools_cpp::memory_tools)
+  endif()
+
+  rcutils_custom_add_gtest(test_snprintf
+    test/test_snprintf.cpp
+  )
+  if(TARGET test_snprintf)
+    target_link_libraries(test_snprintf ${PROJECT_NAME})
   endif()
 endif()
 
