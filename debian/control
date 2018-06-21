@@ -1,0 +1,12 @@
+Source: ros-bouncy-rcutils
+Section: misc
+Priority: extra
+Maintainer: Karsten Knese <karsten@osrfoundation.org>
+Build-Depends: debhelper (>= 9.0.0), python3-empy, ros-bouncy-ament-cmake-gmock, ros-bouncy-ament-cmake-gtest, ros-bouncy-ament-cmake-pytest, ros-bouncy-ament-cmake-ros, ros-bouncy-ament-lint-auto, ros-bouncy-ament-lint-common, ros-bouncy-launch-testing, ros-bouncy-osrf-testing-tools-cpp, ros-bouncy-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-bouncy-rcutils
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-bouncy-ros-workspace
+Description: Package containing various utility types and functions for C
