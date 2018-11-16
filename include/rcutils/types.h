@@ -20,6 +20,7 @@ extern "C"
 {
 #endif
 
+#include "rcutils/types/char_array.h"
 #include "rcutils/types/string_array.h"
 #include "rcutils/types/string_map.h"
 #include "rcutils/types/rcutils_ret.h"

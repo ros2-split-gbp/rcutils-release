@@ -19,8 +19,7 @@ ament_python_install_package(${PROJECT_NAME})
 include_directories(include)
 
 if(NOT WIN32)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
+  add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
 if(WIN32)
@@ -31,6 +30,7 @@ endif()
 
 set(rcutils_sources
   src/allocator.c
+  src/char_array.c
   src/cmdline_parser.c
   src/error_handling.c
   src/filesystem.c
@@ -192,12 +192,29 @@ if(BUILD_TESTING)
     target_link_libraries(test_allocator ${PROJECT_NAME} osrf_testing_tools_cpp::memory_tools)
   endif()
 
+  rcutils_custom_add_gtest(test_char_array
+    test/test_char_array.cpp
+  )
+  if(TARGET test_char_array)
+    target_link_libraries(test_char_array ${PROJECT_NAME})
+  endif()
+
   rcutils_custom_add_gmock(test_error_handling test/test_error_handling.cpp
     # Append the directory of librcutils so it is found at test time.
     APPEND_LIBRARY_DIRS "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+    ENV ${memory_tools_test_env_vars}
   )
   if(TARGET test_error_handling)
-    target_link_libraries(test_error_handling ${PROJECT_NAME})
+    target_link_libraries(test_error_handling ${PROJECT_NAME} osrf_testing_tools_cpp::memory_tools)
+  endif()
+
+  rcutils_custom_add_gmock(test_error_handling_helpers test/test_error_handling_helpers.cpp
+    # Append the directory of librcutils so it is found at test time.
+    APPEND_LIBRARY_DIRS "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+    ENV ${memory_tools_test_env_vars}
+  )
+  if(TARGET test_error_handling_helpers)
+    target_link_libraries(test_error_handling_helpers osrf_testing_tools_cpp::memory_tools)
   endif()
 
   rcutils_custom_add_gtest(test_split
