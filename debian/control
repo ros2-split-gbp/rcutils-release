@@ -1,0 +1,12 @@
+Source: ros-crystal-rcutils
+Section: misc
+Priority: extra
+Maintainer: Karsten Knese <karsten@osrfoundation.org>
+Build-Depends: debhelper (>= 9.0.0), python3-empy, ros-crystal-ament-cmake-gmock, ros-crystal-ament-cmake-gtest, ros-crystal-ament-cmake-pytest, ros-crystal-ament-cmake-ros, ros-crystal-ament-lint-auto, ros-crystal-ament-lint-common, ros-crystal-launch-testing, ros-crystal-osrf-testing-tools-cpp, ros-crystal-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-crystal-rcutils
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-crystal-ros-workspace
+Description: Package containing various utility types and functions for C
