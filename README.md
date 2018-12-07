@@ -1,3 +1,26 @@
+## rcutils (crystal) - 0.6.1-0
+
+The packages in the `rcutils` repository were released into the `crystal` distro by running `/usr/bin/bloom-release --rosdistro crystal --track crystal rcutils --override-release-repository-push-url git@github.com:ros2-gbp/rcutils-release.git` on `Fri, 07 Dec 2018 03:17:53 -0000`
+
+The `rcutils` package was released.
+
+Version of package(s) in repository `rcutils`:
+
+- upstream repository: https://github.com/ros2/rcutils.git
+- release repository: https://github.com/ros2-gbp/rcutils-release.git
+- rosdistro version: `0.6.0-0`
+- old version: `0.6.0-0`
+- new version: `0.6.1-0`
+
+Versions of tools used:
+
+- bloom version: `0.6.9`
+- catkin_pkg version: `0.4.9`
+- rosdep version: `0.13.0`
+- rosdistro version: `0.7.0`
+- vcstools version: `0.1.40`
+
+
 ## rcutils (crystal) - 0.6.0-0
 
 The packages in the `rcutils` repository were released into the `crystal` distro by running `/usr/bin/bloom-release -r crystal -n rcutils --override-release-repository-push-url git@github.com:ros2-gbp/rcutils-release` on `Fri, 16 Nov 2018 16:47:11 -0000`
