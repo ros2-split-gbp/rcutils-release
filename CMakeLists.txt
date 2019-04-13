@@ -142,6 +142,8 @@ if(BUILD_TESTING)
   find_package(osrf_testing_tools_cpp REQUIRED)
   get_target_property(memory_tools_test_env_vars
     osrf_testing_tools_cpp::memory_tools LIBRARY_PRELOAD_ENVIRONMENT_VARIABLE)
+  get_target_property(memory_tools_is_available
+    osrf_testing_tools_cpp::memory_tools LIBRARY_PRELOAD_ENVIRONMENT_IS_AVAILABLE)
 
   ament_add_gtest(test_logging test/test_logging.cpp)
   target_link_libraries(test_logging ${PROJECT_NAME})
@@ -167,15 +169,9 @@ if(BUILD_TESTING)
     COMMAND "$<TARGET_FILE:test_logging_macros_c>"
     GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
 
-  set(SKIP_TEST_IF_WIN32_OR_AARCH64 "")
-  if(WIN32)
-    # (memory tools doesn't do anything on Windows)
-    set(SKIP_TEST_IF_WIN32_OR_AARCH64 "SKIP_TEST")
-  endif()
-  # TODO(wjwwood): reenable for ARM (aarch64) when fixed in osrf_testing_tools_cpp
-  # see: https://github.com/osrf/osrf_testing_tools_cpp/issues/3
-  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-    set(SKIP_TEST_IF_WIN32_OR_AARCH64 "SKIP_TEST")
+  set(SKIP_MEMORY_TOOLS_TEST "")
+  if(NOT memory_tools_is_available)
+    set(SKIP_MEMORY_TOOLS_TEST "SKIP_TEST")
   endif()
 
   macro(rcutils_custom_add_gtest target)
@@ -189,7 +185,7 @@ if(BUILD_TESTING)
   # Gtests
   rcutils_custom_add_gtest(test_allocator test/test_allocator.cpp
     ENV ${memory_tools_test_env_vars}
-    ${SKIP_TEST_IF_WIN32_OR_AARCH64}
+    ${SKIP_MEMORY_TOOLS_TEST}
   )
   if(TARGET test_allocator)
     target_link_libraries(test_allocator ${PROJECT_NAME} osrf_testing_tools_cpp::memory_tools)
@@ -201,6 +197,17 @@ if(BUILD_TESTING)
   if(TARGET test_char_array)
     target_link_libraries(test_char_array ${PROJECT_NAME})
   endif()
+
+  # Can't use C++ with stdatomic_helper.h
+  add_executable(test_atomics_executable
+    test/test_atomics.c
+  )
+  set_target_properties(test_atomics_executable
+    PROPERTIES
+      LANGUAGE C
+  )
+  target_link_libraries(test_atomics_executable ${PROJECT_NAME})
+  add_test(NAME test_atomics COMMAND test_atomics_executable)
 
   rcutils_custom_add_gmock(test_error_handling test/test_error_handling.cpp
     # Append the directory of librcutils so it is found at test time.
@@ -255,7 +262,7 @@ if(BUILD_TESTING)
     test/test_filesystem.cpp
   )
   if(TARGET test_filesystem)
-    target_include_directories(test_filesystem PUBLIC ${osrf_testing_tools_cpp_INCLUDE_DIRS})
+    ament_target_dependencies(test_filesystem "osrf_testing_tools_cpp")
     target_link_libraries(test_filesystem ${PROJECT_NAME})
   endif()
 
@@ -277,6 +284,7 @@ if(BUILD_TESTING)
     test/test_string_map.cpp
   )
   if(TARGET test_string_map)
+    ament_target_dependencies(test_string_map "osrf_testing_tools_cpp")
     target_link_libraries(test_string_map ${PROJECT_NAME})
   endif()
 
