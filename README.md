@@ -1,3 +1,26 @@
+## rcutils (dashing) - 0.7.3-1
+
+The packages in the `rcutils` repository were released into the `dashing` distro by running `/usr/bin/bloom-release --rosdistro dashing --track dashing rcutils` on `Wed, 29 May 2019 23:59:34 -0000`
+
+The `rcutils` package was released.
+
+Version of package(s) in repository `rcutils`:
+
+- upstream repository: https://github.com/ros2/rcutils.git
+- release repository: https://github.com/ros2-gbp/rcutils-release.git
+- rosdistro version: `0.7.2-1`
+- old version: `0.7.2-1`
+- new version: `0.7.3-1`
+
+Versions of tools used:
+
+- bloom version: `0.8.0`
+- catkin_pkg version: `0.4.12`
+- rosdep version: `0.15.1`
+- rosdistro version: `0.7.4`
+- vcstools version: `0.1.40`
+
+
 ## rcutils (dashing) - 0.7.2-1
 
 The packages in the `rcutils` repository were released into the `dashing` distro by running `/usr/bin/bloom-release -r dashing -t dashing rcutils` on `Mon, 20 May 2019 23:16:23 -0000`
