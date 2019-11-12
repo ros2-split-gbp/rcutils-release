@@ -17,13 +17,13 @@ import unittest
 
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess
+from launch.actions import OpaqueFunction
 
 import launch_testing
-import launch_testing.actions
 import launch_testing.asserts
 
 
-def generate_test_description():
+def generate_test_description(ready_fn):
     launch_description = LaunchDescription()
     # Set the output format to a "verbose" format that is expected by the executable output
     os.environ['RCUTILS_CONSOLE_OUTPUT_FORMAT'] = \
@@ -37,7 +37,7 @@ def generate_test_description():
     ))
 
     launch_description.add_action(
-        launch_testing.actions.ReadyToTest()
+        OpaqueFunction(function=lambda context: ready_fn())
     )
     return launch_description, {'process_name': process_name}
 

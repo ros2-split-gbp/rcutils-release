@@ -54,12 +54,11 @@ skipfirst_args = {
 skipfirst_doc_lines = [
     'The first log call is being ignored but all subsequent calls are being processed.']
 throttle_params = OrderedDict((
-    ('get_time_point_value', 'Function that returns rcutils_ret_t and expects a '
-        'rcutils_time_point_value_t pointer.'),
+    ('time_source_type', 'The time source type of the time to be used'),
     ('duration', 'The duration of the throttle interval'),
 ))
 throttle_args = {
-    'condition_before': 'RCUTILS_LOG_CONDITION_THROTTLE_BEFORE(get_time_point_value, duration)',
+    'condition_before': 'RCUTILS_LOG_CONDITION_THROTTLE_BEFORE(time_source_type, duration)',
     'condition_after': 'RCUTILS_LOG_CONDITION_THROTTLE_AFTER'}
 throttle_doc_lines = [
     'Log calls are being ignored if the last logged message is not longer ago than the specified '
