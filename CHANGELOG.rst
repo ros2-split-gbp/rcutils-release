@@ -2,10 +2,34 @@
 Changelog for package rcutils
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.7.4 (2019-11-11)
+0.8.3 (2019-11-12)
 ------------------
-* Use Win32 wrapper around 64 bit atomic operations (`#186 <https://github.com/ros2/rcutils/issues/186>`_) (`#188 <https://github.com/ros2/rcutils/issues/188>`_)
+* Fix uninitialized handle error (`#187 <https://github.com/ros2/rcutils/issues/187>`_)
+* Use Win32 wrapper around 64 bit atomic operations (`#186 <https://github.com/ros2/rcutils/issues/186>`_)
 * Contributors: Sean Kelly
+
+0.8.2 (2019-10-23)
+------------------
+* Specify working directory for filesystem test (`#185 <https://github.com/ros2/rcutils/issues/185>`_)
+* Make use of time source type for throttling logs (`#183 <https://github.com/ros2/rcutils/issues/183>`_)
+* Remove ready_fn - will be replaced by ReadyToTest() (`#184 <https://github.com/ros2/rcutils/issues/184>`_)
+* Contributors: Brian Marchi, Dan Rose, Peter Baughman
+
+0.8.1 (2019-10-03)
+------------------
+* Implement rcutils_mkdir. (`#166 <https://github.com/ros2/rcutils/issues/166>`_)
+* Contributors: Chris Lalancette
+
+0.8.0 (2019-09-24)
+------------------
+* Make g_rcutils_log_severity_names public and immutable. (`#180 <https://github.com/ros2/rcutils/issues/180>`_)
+* use _WIN32 instead of WIN32 (`#179 <https://github.com/ros2/rcutils/issues/179>`_)
+* Revert "check and link against libatomic (`#172 <https://github.com/ros2/rcutils/issues/172>`_)" (`#177 <https://github.com/ros2/rcutils/issues/177>`_)
+* check and link against libatomic (`#172 <https://github.com/ros2/rcutils/issues/172>`_)
+* Rewrite test_logging_throttle tests: (`#167 <https://github.com/ros2/rcutils/issues/167>`_)
+* Disable uncrustify indentation check for macros that use windows  `__pragma` (`#164 <https://github.com/ros2/rcutils/issues/164>`_)
+* Fix armhf warning (`#163 <https://github.com/ros2/rcutils/issues/163>`_)
+* Contributors: Christian Rauch, Dirk Thomas, Emerson Knapp, Michel Hidalgo, Shane Loretz, jpsamper2009
 
 0.7.3 (2019-05-29)
 ------------------
