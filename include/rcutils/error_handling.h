@@ -130,6 +130,7 @@ static_assert(
  * If already initialized, the given allocator is ignored, even if it does not
  * match the allocator used originally to initialize the thread-local storage.
  *
+ * \param[in] allocator to be used to allocate and deallocate memory
  * \return `RCUTILS_RET_OK` if successful, or
  * \return `RCUTILS_RET_INVALID_ARGUMENT` if the allocator is invalid, or
  * \return `RCUTILS_RET_BAD_ALLOC` if allocating memory fails, or
@@ -167,7 +168,8 @@ rcutils_set_error_state(const char * error_string, const char * file, size_t lin
  * \param[in] error_return_type The type to return if the argument is `NULL`.
  */
 #define RCUTILS_CHECK_ARGUMENT_FOR_NULL(argument, error_return_type) \
-  RCUTILS_CHECK_FOR_NULL_WITH_MSG(argument, #argument " argument is null", \
+  RCUTILS_CHECK_FOR_NULL_WITH_MSG( \
+    argument, #argument " argument is null", \
     return error_return_type)
 
 /// Check a value for null, with an error message and error statement.

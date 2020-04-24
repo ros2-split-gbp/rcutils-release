@@ -17,13 +17,15 @@ import unittest
 
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess
-from launch.actions import OpaqueFunction
 
 import launch_testing
+import launch_testing.actions
 import launch_testing.asserts
+import launch_testing.markers
 
 
-def generate_test_description(ready_fn):
+@launch_testing.markers.keep_alive
+def generate_test_description():
     processes_to_test = []
 
     launch_description = LaunchDescription()
@@ -71,10 +73,17 @@ def generate_test_description(ready_fn):
     processes_to_test.append(name)
 
     launch_description.add_action(
-        OpaqueFunction(function=lambda context: ready_fn())
+        launch_testing.actions.ReadyToTest()
     )
 
     return launch_description, {'processes_to_test': processes_to_test}
+
+
+class TestLoggingOutputFormat(unittest.TestCase):
+
+    def test_logging_output(self, proc_info, proc_output, processes_to_test):
+        for process_name in processes_to_test:
+            proc_info.assertWaitForShutdown(process=process_name, timeout=10)
 
 
 @launch_testing.post_shutdown_test()
@@ -83,7 +92,7 @@ class TestLoggingOutputFormatAfterShutdown(unittest.TestCase):
     def test_logging_output(self, proc_output, processes_to_test):
         """Test all executables output against expectations."""
         for process_name in processes_to_test:
-            launch_testing.asserts.assertInStdout(
+            launch_testing.asserts.assertInStderr(
                 proc_output,
                 expected_output=launch_testing.tools.expected_output_from_file(
                     path=os.path.join(os.path.dirname(__file__), process_name)

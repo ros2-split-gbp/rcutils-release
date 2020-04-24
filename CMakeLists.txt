@@ -11,12 +11,12 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
+include(CheckLibraryExists)
+
 find_package(ament_cmake_python REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
 
 ament_python_install_package(${PROJECT_NAME})
-
-include_directories(include)
 
 if(NOT WIN32)
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -42,9 +42,11 @@ set(rcutils_sources
   src/logging.c
   src/process.c
   src/repl_str.c
+  src/shared_library.c
   src/snprintf.c
   src/split.c
   src/strdup.c
+  src/strerror.c
   src/string_array.c
   src/string_map.c
   src/time.c
@@ -88,22 +90,27 @@ add_custom_command(OUTPUT include/rcutils/logging_macros.h
 )
 list(APPEND rcutils_sources
   include/rcutils/logging_macros.h)
-include_directories("${CMAKE_CURRENT_BINARY_DIR}/include")
 
 add_library(
   ${PROJECT_NAME}
   ${rcutils_sources})
+target_include_directories(${PROJECT_NAME} PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+  "$<INSTALL_INTERFACE:include>")
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(${PROJECT_NAME} PRIVATE "RCUTILS_BUILDING_DLL")
+
+target_link_libraries(${PROJECT_NAME} ${CMAKE_DL_LIBS})
 
 # Needed if pthread is used for thread local storage.
 if(IOS AND IOS_SDK_VERSION LESS 10.0)
   ament_export_libraries(pthread)
 endif()
 
-install(TARGETS ${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
@@ -120,6 +127,13 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 
   find_package(launch_testing_ament_cmake REQUIRED)
+
+  check_library_exists(atomic __atomic_load_8 "" HAVE_LIBATOMICS)
+
+  if(HAVE_LIBATOMICS AND NOT WIN32)
+    # Exporting link flag since it won't pass ament_export_libraries() existance check
+    ament_export_link_flags("-latomic")
+  endif()
 
   if(ament_cmake_cppcheck_FOUND)
     ament_cppcheck(
@@ -214,6 +228,10 @@ if(BUILD_TESTING)
       LANGUAGE C
   )
   target_link_libraries(test_atomics_executable ${PROJECT_NAME})
+  if(HAVE_LIBATOMICS)
+    target_link_libraries(test_atomics_executable atomic)
+  endif()
+
   add_test(NAME test_atomics COMMAND test_atomics_executable)
 
   rcutils_custom_add_gmock(test_error_handling test/test_error_handling.cpp
@@ -231,6 +249,7 @@ if(BUILD_TESTING)
     ENV ${memory_tools_test_env_vars}
   )
   if(TARGET test_error_handling_helpers)
+    target_include_directories(test_error_handling_helpers PUBLIC include)
     target_link_libraries(test_error_handling_helpers osrf_testing_tools_cpp::memory_tools)
   endif()
 
@@ -246,6 +265,13 @@ if(BUILD_TESTING)
   )
   if(TARGET test_find)
     target_link_libraries(test_find ${PROJECT_NAME})
+  endif()
+
+  rcutils_custom_add_gtest(test_strerror
+    test/test_strerror.cpp
+  )
+  if(TARGET test_strerror)
+    target_link_libraries(test_strerror ${PROJECT_NAME})
   endif()
 
   rcutils_custom_add_gtest(test_string_array
@@ -267,10 +293,12 @@ if(BUILD_TESTING)
 
   rcutils_custom_add_gtest(test_filesystem
     test/test_filesystem.cpp
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
   )
   if(TARGET test_filesystem)
     ament_target_dependencies(test_filesystem "osrf_testing_tools_cpp")
     target_link_libraries(test_filesystem ${PROJECT_NAME})
+    target_compile_definitions(test_filesystem PRIVATE BUILD_DIR="${CMAKE_CURRENT_BINARY_DIR}")
   endif()
 
   rcutils_custom_add_gtest(test_strdup
@@ -309,6 +337,22 @@ if(BUILD_TESTING)
     target_link_libraries(test_repl_str ${PROJECT_NAME})
   endif()
 
+  set(append_library_dirs "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
+
+  ament_add_gtest(test_shared_library test/test_shared_library.cpp
+    APPEND_LIBRARY_DIRS "${append_library_dirs}"
+  )
+
+  if(TARGET test_shared_library)
+    add_library(dummy_shared_library test/dummy_shared_library/dummy_shared_library.c)
+    if(WIN32)
+      # Causes the visibility macros to use dllexport rather than dllimport
+      # which is appropriate when building the dll but not consuming it.
+      target_compile_definitions(dummy_shared_library PRIVATE "DUMMY_SHARED_LIBRARY_BUILDING_DLL")
+    endif()
+    target_link_libraries(test_shared_library ${PROJECT_NAME})
+  endif()
+
   rcutils_custom_add_gtest(test_time
     test/test_time.cpp
     ENV ${memory_tools_test_env_vars})
@@ -343,11 +387,45 @@ if(BUILD_TESTING)
   if(TARGET test_hash_map)
     target_link_libraries(test_hash_map ${PROJECT_NAME})
   endif()
+
+  rcutils_custom_add_gtest(test_cmdline_parser
+    test/test_cmdline_parser.cpp
+  )
+  if(TARGET test_cmdline_parser)
+    target_link_libraries(test_cmdline_parser ${PROJECT_NAME})
+  endif()
+
+  rcutils_custom_add_gtest(test_process
+    test/test_process.cpp
+  )
+  if(TARGET test_process)
+    target_link_libraries(test_process ${PROJECT_NAME})
+  endif()
+
+  rcutils_custom_add_gtest(test_logging_custom_env test/test_logging_custom_env.cpp
+    ENV
+      RCUTILS_CONSOLE_OUTPUT_FORMAT="[{severity}] [{time},{time_as_nanoseconds}] [{name},{function_name},{file_name}]: {line_number}-{message}"
+      RCUTILS_CONSOLE_STDOUT_LINE_BUFFERED=1
+      RCUTILS_COLORIZED_OUTPUT=1
+  )
+  if(TARGET test_logging_custom_env)
+    target_link_libraries(test_logging_custom_env ${PROJECT_NAME} osrf_testing_tools_cpp::memory_tools)
+  endif()
+
+  rcutils_custom_add_gtest(test_logging_enable_for
+    test/test_logging_enable_for.cpp
+  )
+  if(TARGET test_logging_enable_for)
+    target_link_libraries(test_logging_enable_for ${PROJECT_NAME})
+  endif()
+
+
 endif()
 
 ament_export_dependencies(ament_cmake)
 ament_export_include_directories(include)
-ament_export_libraries(${PROJECT_NAME})
+ament_export_libraries(${PROJECT_NAME} ${CMAKE_DL_LIBS})
+ament_export_targets(${PROJECT_NAME})
 ament_package()
 
 install(

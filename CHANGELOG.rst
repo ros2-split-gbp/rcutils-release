@@ -2,15 +2,77 @@
 Changelog for package rcutils
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.7.5 (2019-12-10)
+0.9.0 (2020-04-24)
 ------------------
-* Fix uninitialized handle error (`#187 <https://github.com/ros2/rcutils/issues/187>`_) (`#191 <https://github.com/ros2/rcutils/issues/191>`_)
-* Contributors: Karsten Knese, Sean Kelly
+* Improved documentation (`#225 <https://github.com/ros2/rcutils/issues/225>`_)
+* Increased test coverage (`#224 <https://github.com/ros2/rcutils/issues/224>`_)
+* Set errno to EINVAL when explicitly returning -1 (`#239 <https://github.com/ros2/rcutils/issues/239>`_)
+* Don't assume errno is set to 0 on success on Windows (`#238 <https://github.com/ros2/rcutils/issues/238>`_)
+* Make sure to initialize buffers for logging testing (`#233 <https://github.com/ros2/rcutils/issues/233>`_)
+* Add deprecated with message macro (`#235 <https://github.com/ros2/rcutils/issues/235>`_)
+* Don't check GetLastError() on success (`#236 <https://github.com/ros2/rcutils/issues/236>`_)
+* Add a RCUTILS_DEPRECATED macro to enable platform specific deprecation (`#234 <https://github.com/ros2/rcutils/issues/234>`_)
+* Don't leak memory on realloc failing (`#232 <https://github.com/ros2/rcutils/issues/232>`_)
+* Assume WIN32 HINSTANCE is a void * (`#230 <https://github.com/ros2/rcutils/issues/230>`_)
+* Use ament_export_targets() (`#228 <https://github.com/ros2/rcutils/issues/228>`_)
+* Add freebsd support (`#223 <https://github.com/ros2/rcutils/issues/223>`_)
+* Added debug version for library names (`#227 <https://github.com/ros2/rcutils/issues/227>`_)
+* Fixed condition in rcutils_get_platform_library_name (`#226 <https://github.com/ros2/rcutils/issues/226>`_)
+* Added rcutils_is_shared_library_loaded function (`#222 <https://github.com/ros2/rcutils/issues/222>`_)
+* Export interfaces in a addition to include directories / libraries (`#221 <https://github.com/ros2/rcutils/issues/221>`_)
+* Included utils to load, unload and get symbols from shared libraries (`#215 <https://github.com/ros2/rcutils/issues/215>`_)
+* Check and link against libatomic (`#172 <https://github.com/ros2/rcutils/issues/172>`_) (`#178 <https://github.com/ros2/rcutils/issues/178>`_)
+* Remove test for large allocation failure (`#214 <https://github.com/ros2/rcutils/issues/214>`_)
+* Increase rcutils line testing coverage  (`#208 <https://github.com/ros2/rcutils/issues/208>`_)
+* Don't both print with fprintf and RCUTILS_SET_ERROR_MSG. (`#213 <https://github.com/ros2/rcutils/issues/213>`_)
+* All logging to the same stream (`#196 <https://github.com/ros2/rcutils/issues/196>`_)
+* Style update to match uncrustify with explicit language (`#210 <https://github.com/ros2/rcutils/issues/210>`_)
+* Add in a concurrent test to test_logging_output_format.py (`#209 <https://github.com/ros2/rcutils/issues/209>`_)
+* Fix bug in split function (`#206 <https://github.com/ros2/rcutils/issues/206>`_)
+* Fixes in comments (`#207 <https://github.com/ros2/rcutils/issues/207>`_)
+* Code style only: wrap after open parenthesis if not in one line (`#203 <https://github.com/ros2/rcutils/issues/203>`_)
+* Split visibility macro project independent logic (`#194 <https://github.com/ros2/rcutils/issues/194>`_)
+* Increase max length of env var value on Windows to 32767 (`#201 <https://github.com/ros2/rcutils/issues/201>`_)
+* Improve error message on Windows when rcutils_get_env fails (`#200 <https://github.com/ros2/rcutils/issues/200>`_)
+* Fix filesystem tests to account for extra byte on Windows (`#199 <https://github.com/ros2/rcutils/issues/199>`_)
+* Calculate file and directory size (`#197 <https://github.com/ros2/rcutils/issues/197>`_)
+* Fix race in rcutils launch_tests (`#193 <https://github.com/ros2/rcutils/issues/193>`_)
+* Changing default logging format to include timestamp (`#190 <https://github.com/ros2/rcutils/issues/190>`_)
+* Contributors: Alejandro Hernández Cordero, Chris Lalancette, Dirk Thomas, Jorge Perez, Karsten Knese, Peter Baughman, Scott K Logan, Shane Loretz, Steven Macenski, Thomas Moulard, Tully Foote, Michael Dodson
 
-0.7.4 (2019-11-11)
+0.8.4 (2019-11-18)
 ------------------
-* Use Win32 wrapper around 64 bit atomic operations (`#186 <https://github.com/ros2/rcutils/issues/186>`_) (`#188 <https://github.com/ros2/rcutils/issues/188>`_)
+* fix type of logging feature keys (`#192 <https://github.com/ros2/rcutils/issues/192>`_)
+* Contributors: Dirk Thomas
+
+0.8.3 (2019-11-12)
+------------------
+* Fix uninitialized handle error (`#187 <https://github.com/ros2/rcutils/issues/187>`_)
+* Use Win32 wrapper around 64 bit atomic operations (`#186 <https://github.com/ros2/rcutils/issues/186>`_)
 * Contributors: Sean Kelly
+
+0.8.2 (2019-10-23)
+------------------
+* Specify working directory for filesystem test (`#185 <https://github.com/ros2/rcutils/issues/185>`_)
+* Make use of time source type for throttling logs (`#183 <https://github.com/ros2/rcutils/issues/183>`_)
+* Remove ready_fn - will be replaced by ReadyToTest() (`#184 <https://github.com/ros2/rcutils/issues/184>`_)
+* Contributors: Brian Marchi, Dan Rose, Peter Baughman
+
+0.8.1 (2019-10-03)
+------------------
+* Implement rcutils_mkdir. (`#166 <https://github.com/ros2/rcutils/issues/166>`_)
+* Contributors: Chris Lalancette
+
+0.8.0 (2019-09-24)
+------------------
+* Make g_rcutils_log_severity_names public and immutable. (`#180 <https://github.com/ros2/rcutils/issues/180>`_)
+* use _WIN32 instead of WIN32 (`#179 <https://github.com/ros2/rcutils/issues/179>`_)
+* Revert "check and link against libatomic (`#172 <https://github.com/ros2/rcutils/issues/172>`_)" (`#177 <https://github.com/ros2/rcutils/issues/177>`_)
+* check and link against libatomic (`#172 <https://github.com/ros2/rcutils/issues/172>`_)
+* Rewrite test_logging_throttle tests: (`#167 <https://github.com/ros2/rcutils/issues/167>`_)
+* Disable uncrustify indentation check for macros that use windows  `__pragma` (`#164 <https://github.com/ros2/rcutils/issues/164>`_)
+* Fix armhf warning (`#163 <https://github.com/ros2/rcutils/issues/163>`_)
+* Contributors: Christian Rauch, Dirk Thomas, Emerson Knapp, Michel Hidalgo, Shane Loretz, jpsamper2009
 
 0.7.3 (2019-05-29)
 ------------------

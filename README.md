@@ -2,6 +2,12 @@
 
 `rcutils` is a C API consisting of macros, functions, and data structures used through out the ROS 2 code base.
 
+## Quality Declaration
+
+This package claims to be in the **Quality Level 4** category, see the [Quality Declaration](./QUALITY_DECLARATION.md) for more details.
+
+## API
+
 The API is a combination of parts:
 
 - Allocator concept, used to inject the allocating and deallocating methods into a function or type.
@@ -31,6 +37,8 @@ The API is a combination of parts:
     - RCUTILS_LOG_ERROR_SKIPFIRST_NAMED()
   - rcutils/logging_macros.h
   - rcutils/logging.h
+- Some basic utilities to load, unload and get symbols from shared libraries at run-time.
+  - rcutils/shared_library.h
 - A string replacement function which takes an allocator, based on http://creativeandcritical.net/str-replace-c:
   - rcutils_repl_str()
   - rcutils/repl_str.h

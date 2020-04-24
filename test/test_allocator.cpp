@@ -14,6 +14,7 @@
 
 #include <gtest/gtest.h>
 
+#include "./allocator_testing_utils.h"
 #include "rcutils/allocator.h"
 
 #include "osrf_testing_tools_cpp/memory_tools/memory_tools.hpp"
@@ -63,7 +64,8 @@ TEST_F(CLASSNAME(TestAllocatorFixture, RMW_IMPLEMENTATION), test_default_allocat
   on_unexpected_free([&frees]() {frees++;});
 
   rcutils_allocator_t allocator;
-  EXPECT_NO_MEMORY_OPERATIONS({
+  EXPECT_NO_MEMORY_OPERATIONS(
+  {
     allocator = rcutils_get_default_allocator();
   });
   EXPECT_EQ(0u, mallocs);
@@ -72,27 +74,39 @@ TEST_F(CLASSNAME(TestAllocatorFixture, RMW_IMPLEMENTATION), test_default_allocat
   EXPECT_EQ(0u, frees);
 
   void * allocated_memory = nullptr;
-  EXPECT_NO_MEMORY_OPERATIONS({
+  EXPECT_NO_MEMORY_OPERATIONS(
+  {
     allocated_memory = allocator.allocate(1024, allocator.state);
   });
   EXPECT_EQ(1u, mallocs);
   EXPECT_NE(nullptr, allocated_memory);
-  EXPECT_NO_MEMORY_OPERATIONS({
+  EXPECT_NO_MEMORY_OPERATIONS(
+  {
     allocated_memory = allocator.reallocate(allocated_memory, 2048, allocator.state);
   });
   EXPECT_EQ(1u, reallocs);
   EXPECT_NE(nullptr, allocated_memory);
-  EXPECT_NO_MEMORY_OPERATIONS({
+  EXPECT_NO_MEMORY_OPERATIONS(
+  {
     allocator.deallocate(allocated_memory, allocator.state);
     allocated_memory = allocator.zero_allocate(1024, sizeof(void *), allocator.state);
   });
   EXPECT_EQ(1u, callocs);
   EXPECT_NE(nullptr, allocated_memory);
-  EXPECT_NO_MEMORY_OPERATIONS({
+  EXPECT_NO_MEMORY_OPERATIONS(
+  {
     allocator.deallocate(allocated_memory, allocator.state);
   });
   EXPECT_EQ(1u, mallocs);
   EXPECT_EQ(1u, reallocs);
   EXPECT_EQ(1u, callocs);
   EXPECT_EQ(2u, frees);
+}
+
+TEST(test_allocator, realloc_failing_allocators) {
+  void * allocated_memory = nullptr;
+  EXPECT_EQ(nullptr, rcutils_reallocf(allocated_memory, 1024, nullptr));
+
+  auto failing_allocator = get_failing_allocator();
+  EXPECT_EQ(nullptr, rcutils_reallocf(allocated_memory, 1024, &failing_allocator));
 }

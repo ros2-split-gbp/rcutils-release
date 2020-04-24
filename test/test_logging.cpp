@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "./allocator_testing_utils.h"
 #include "osrf_testing_tools_cpp/scope_exit.hpp"
 #include "rcutils/logging.h"
 
@@ -30,12 +31,24 @@
 TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logging_initialization) {
   EXPECT_FALSE(g_rcutils_logging_initialized);
   ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
-  OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT({
+  OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
+  {
     EXPECT_EQ(RCUTILS_RET_OK, rcutils_logging_shutdown());
   });
   EXPECT_TRUE(g_rcutils_logging_initialized);
   ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
   EXPECT_TRUE(g_rcutils_logging_initialized);
+
+  EXPECT_EQ(RCUTILS_RET_OK, rcutils_logging_shutdown());
+  rcutils_allocator_t empty_allocator = rcutils_get_zero_initialized_allocator();
+  EXPECT_EQ(
+    RCUTILS_RET_INVALID_ARGUMENT, rcutils_logging_initialize_with_allocator(empty_allocator));
+
+  // Testing with a bad allocator fails when allocating internal memory
+  // for the string map relating severity level values to string
+  rcutils_allocator_t failing_allocator = get_failing_allocator();
+  EXPECT_EQ(
+    RCUTILS_RET_STRING_MAP_INVALID, rcutils_logging_initialize_with_allocator(failing_allocator));
 }
 
 size_t g_log_calls = 0;
@@ -53,7 +66,8 @@ LogEvent g_last_log_event;
 TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logging) {
   EXPECT_FALSE(g_rcutils_logging_initialized);
   ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
-  OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT({
+  OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
+  {
     EXPECT_EQ(RCUTILS_RET_OK, rcutils_logging_shutdown());
   });
   EXPECT_TRUE(g_rcutils_logging_initialized);
@@ -163,11 +177,17 @@ TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_log_severity) {
   ASSERT_EQ(
     RCUTILS_RET_LOGGING_SEVERITY_STRING_INVALID,
     rcutils_logging_severity_level_from_string("unknown", allocator, &severity));
+
+  rcutils_allocator_t failing_allocator = get_failing_allocator();
+  EXPECT_EQ(
+    RCUTILS_RET_BAD_ALLOC,
+    rcutils_logging_severity_level_from_string("Info", failing_allocator, &severity));
 }
 
 TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logger_severities) {
   ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
-  OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT({
+  OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
+  {
     EXPECT_EQ(RCUTILS_RET_OK, rcutils_logging_shutdown());
   });
   rcutils_logging_set_default_logger_level(RCUTILS_LOG_SEVERITY_INFO);
@@ -209,6 +229,11 @@ TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logger_severities) {
     rcutils_logging_get_logger_effective_level(""));
 
   // check setting of invalid severities
+  EXPECT_EQ(-1, rcutils_logging_get_logger_level(NULL));
+  EXPECT_EQ(-1, rcutils_logging_get_logger_leveln(NULL, 5));
+  EXPECT_EQ(-1, rcutils_logging_get_logger_effective_level(NULL));
+  ASSERT_EQ(RCUTILS_RET_INVALID_ARGUMENT, rcutils_logging_set_logger_level(NULL, 1));
+  rcutils_reset_error();
   ASSERT_EQ(
     RCUTILS_RET_INVALID_ARGUMENT,
     rcutils_logging_set_logger_level("rcutils_test_loggers", -1));
@@ -221,11 +246,19 @@ TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logger_severities) {
     RCUTILS_RET_INVALID_ARGUMENT,
     rcutils_logging_set_logger_level("rcutils_test_loggers", 1000));
   rcutils_reset_error();
+
+  EXPECT_EQ(RCUTILS_RET_OK, rcutils_logging_shutdown());
+  g_rcutils_logging_initialized = true;
+  EXPECT_EQ(RCUTILS_LOG_SEVERITY_UNSET, rcutils_logging_get_logger_level("rcutils_test_loggers"));
+  EXPECT_EQ(
+    RCUTILS_RET_LOGGING_SEVERITY_MAP_INVALID,
+    rcutils_logging_set_logger_level("rcutils_test_loggers", 51));
 }
 
 TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logger_severity_hierarchy) {
   ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
-  OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT({
+  OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
+  {
     EXPECT_EQ(RCUTILS_RET_OK, rcutils_logging_shutdown());
   });
 
