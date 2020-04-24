@@ -1,3 +1,26 @@
+## rcutils (foxy) - 0.9.0-1
+
+The packages in the `rcutils` repository were released into the `foxy` distro by running `/usr/bin/bloom-release -r foxy rcutils` on `Fri, 24 Apr 2020 22:02:13 -0000`
+
+The `rcutils` package was released.
+
+Version of package(s) in repository `rcutils`:
+
+- upstream repository: https://github.com/ros2/rcutils.git
+- release repository: unknown
+- rosdistro version: `null`
+- old version: `null`
+- new version: `0.9.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.9.3`
+- catkin_pkg version: `0.4.17`
+- rosdep version: `0.19.0`
+- rosdistro version: `0.8.1`
+- vcstools version: `0.1.42`
+
+
 ## rcutils (dashing) - 0.7.5-1
 
 The packages in the `rcutils` repository were released into the `dashing` distro by running `/usr/bin/bloom-release rcutils -r dashing` on `Tue, 10 Dec 2019 19:34:19 -0000`
