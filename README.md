@@ -1,3 +1,26 @@
+## rcutils (rolling) - 1.1.0-1
+
+The packages in the `rcutils` repository were released into the `rolling` distro by running `/usr/bin/bloom-release --rosdistro rolling --track rolling rcutils` on `Fri, 26 Jun 2020 15:06:54 -0000`
+
+The `rcutils` package was released.
+
+Version of package(s) in repository `rcutils`:
+
+- upstream repository: https://github.com/ros2/rcutils.git
+- release repository: https://github.com/ros2-gbp/rcutils-release.git
+- rosdistro version: `1.0.1-2`
+- old version: `1.0.1-2`
+- new version: `1.1.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.9.7`
+- catkin_pkg version: `0.4.22`
+- rosdep version: `0.19.0`
+- rosdistro version: `0.8.2`
+- vcstools version: `0.1.42`
+
+
 ## rcutils (foxy) - 1.0.1-1
 
 The packages in the `rcutils` repository were released into the `foxy` distro by running `/usr/bin/bloom-release -r foxy rcutils` on `Thu, 04 Jun 2020 03:18:02 -0000`
