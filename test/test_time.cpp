@@ -23,6 +23,8 @@
 #include "rcutils/error_handling.h"
 #include "rcutils/time.h"
 
+#include "./mocking_utils/patch.hpp"
+
 using osrf_testing_tools_cpp::memory_tools::disable_monitoring_in_all_threads;
 using osrf_testing_tools_cpp::memory_tools::enable_monitoring_in_all_threads;
 using osrf_testing_tools_cpp::memory_tools::on_unexpected_calloc;
@@ -49,6 +51,75 @@ public:
     osrf_testing_tools_cpp::memory_tools::uninitialize();
   }
 };
+
+// Tests the rcutils time unit conversion macros.
+TEST_F(TestTimeFixture, test_rcutils_time_conversion_macros) {
+  // Note: 9007199254740993 or higher cannot be represented anymore by intermediate type double
+  // without a loss of precision.
+
+  // seconds to nanoseconds
+  EXPECT_EQ(RCUTILS_S_TO_NS(1), 1000000000ll);  // int
+  EXPECT_EQ(RCUTILS_S_TO_NS(0.2), 200000000.);  // double
+  EXPECT_EQ(RCUTILS_S_TO_NS(1 + 1), 2000000000ll);  // sum of ints
+  EXPECT_EQ(
+    RCUTILS_S_TO_NS(9007199.254740992),
+    9007199254740992.);  // maximum precision double (53 bits)
+  EXPECT_EQ(
+    RCUTILS_S_TO_NS(9007199.254740993),
+    9007199254740992.);  // value is truncated!
+
+  // milliseconds to nanoseconds
+  EXPECT_EQ(RCUTILS_MS_TO_NS(1), 1000000ll);  // int
+  EXPECT_EQ(RCUTILS_MS_TO_NS(0.2), 200000.);  // double
+  EXPECT_EQ(RCUTILS_MS_TO_NS(1 + 1), 2000000ll);  // sum of ints
+  EXPECT_EQ(
+    RCUTILS_MS_TO_NS(9007199254.740992),
+    9007199254740992.);  // maximum precision double (53 bits)
+  EXPECT_EQ(
+    RCUTILS_MS_TO_NS(9007199254.740993),
+    9007199254740994.);  // value is truncated!
+
+  // microseconds to nanoseconds
+  EXPECT_EQ(RCUTILS_US_TO_NS(1), 1000ll);  // int
+  EXPECT_EQ(RCUTILS_US_TO_NS(0.2), 200.);  // double
+  EXPECT_EQ(RCUTILS_US_TO_NS(1 + 1), 2000ll);  // sum of ints
+  EXPECT_EQ(
+    RCUTILS_US_TO_NS(9007199254740.992),
+    9007199254740992.);  // maximum precision double (53 bits)
+  EXPECT_EQ(
+    RCUTILS_US_TO_NS(9007199254740.993),
+    9007199254740992.);  // value is truncated!
+
+  // nanoseconds to seconds
+  EXPECT_EQ(RCUTILS_NS_TO_S(1000000000ll), 1ll);  // int64_t
+  EXPECT_EQ(RCUTILS_NS_TO_S(1000000042ll), 1ll);  // int64_t (truncated)
+  EXPECT_EQ(RCUTILS_NS_TO_S(-1999999999ll), -1ll);  // int64_t (truncated)
+  EXPECT_EQ(RCUTILS_NS_TO_S(200000000.), 0.2);  // double
+  EXPECT_EQ(RCUTILS_NS_TO_S(1.0 + 1.0), 0.000000002);  // sum of doubles
+  EXPECT_EQ(
+    RCUTILS_NS_TO_S(9007199254740992.),
+    9007199.254740992);  // maximum precision double (53 bits)
+
+  // nanoseconds to milliseconds
+  EXPECT_EQ(RCUTILS_NS_TO_MS(1000000ll), 1ll);  // int64_t
+  EXPECT_EQ(RCUTILS_NS_TO_MS(1000042ll), 1ll);  // int64_t (truncated)
+  EXPECT_EQ(RCUTILS_NS_TO_MS(-1999999ll), -1ll);  // int64_t (truncated)
+  EXPECT_EQ(RCUTILS_NS_TO_MS(200000.), 0.2);  // double
+  EXPECT_EQ(RCUTILS_NS_TO_MS(1.0 + 1.0), 0.000002);  // sum of doubles
+  EXPECT_EQ(
+    RCUTILS_NS_TO_MS(9007199254740992.),
+    9007199254.740992);  // maximum precision double (53 bits)
+
+  // nanoseconds to microseconds
+  EXPECT_EQ(RCUTILS_NS_TO_US(1000ll), 1ll);  // int64_t
+  EXPECT_EQ(RCUTILS_NS_TO_US(1042ll), 1ll);  // int64_t (truncated)
+  EXPECT_EQ(RCUTILS_NS_TO_US(-1999ll), -1ll);  // int64_t (truncated)
+  EXPECT_EQ(RCUTILS_NS_TO_US(200.), 0.2);  // double
+  EXPECT_EQ(RCUTILS_NS_TO_US(1.0 + 1.0), 0.002);  // sum of doubles
+  EXPECT_EQ(
+    RCUTILS_NS_TO_US(9007199254740992.),
+    9007199254740.992);  // maximum precision double (53 bits)
+}
 
 // Tests the rcutils_system_time_now() function.
 TEST_F(TestTimeFixture, test_rcutils_system_time_now) {
@@ -118,6 +189,63 @@ TEST_F(TestTimeFixture, test_rcutils_steady_time_now) {
   EXPECT_LE(
     llabs(steady_diff - sc_diff), RCUTILS_MS_TO_NS(k_tolerance_ms)) << "steady_clock differs";
 }
+
+#if !defined(_WIN32)
+
+// For mocking purposes
+#if defined(__MACH__)
+#include <mach/clock.h>
+#include <mach/mach.h>
+#define clock_gettime clock_get_time
+#endif
+
+// Tests rcutils_system_time_now() and rcutils_steady_time_now() functions
+// when system clocks misbehave.
+TEST_F(TestTimeFixture, test_rcutils_with_bad_system_clocks) {
+#if !defined (__MACH__)  // as tv_sec is an unsigned integer there
+  {
+    auto mock = mocking_utils::patch(
+      "lib:rcutils", clock_gettime,
+      [](auto, auto * ts) {
+        ts->tv_sec = -1;
+        ts->tv_nsec = 0;
+        return 0;
+      });
+
+    rcutils_time_point_value_t now = 0;
+    rcutils_ret_t ret = rcutils_system_time_now(&now);
+    EXPECT_EQ(RCUTILS_RET_ERROR, ret);
+    rcutils_reset_error();
+
+    ret = rcutils_steady_time_now(&now);
+    EXPECT_EQ(RCUTILS_RET_ERROR, ret);
+    rcutils_reset_error();
+  }
+#endif
+  {
+    auto mock = mocking_utils::patch(
+      "lib:rcutils", clock_gettime,
+      [](auto, auto * ts) {
+        ts->tv_sec = 0;
+        ts->tv_nsec = -1;
+        return 0;
+      });
+
+    rcutils_time_point_value_t now = 0;
+    rcutils_ret_t ret = rcutils_system_time_now(&now);
+    EXPECT_EQ(RCUTILS_RET_ERROR, ret);
+    rcutils_reset_error();
+
+    ret = rcutils_steady_time_now(&now);
+    EXPECT_EQ(RCUTILS_RET_ERROR, ret);
+    rcutils_reset_error();
+  }
+}
+
+#if defined(__MACH__)
+#undef clock_gettime
+#endif
+#endif  // !defined(_WIN32)
 
 // Tests the rcutils_time_point_value_as_nanoseconds_string() function.
 TEST_F(TestTimeFixture, test_rcutils_time_point_value_as_nanoseconds_string) {

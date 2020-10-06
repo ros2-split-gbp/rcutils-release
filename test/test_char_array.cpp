@@ -20,6 +20,8 @@
 #include "rcutils/error_handling.h"
 #include "rcutils/types/char_array.h"
 
+#include "./mocking_utils/patch.hpp"
+
 class ArrayCharTest : public ::testing::Test
 {
 protected:
@@ -61,7 +63,8 @@ TEST_F(ArrayCharTest, resize) {
   rcutils_ret_t ret = rcutils_char_array_init(&char_array, 5, &allocator);
   ASSERT_EQ(RCUTILS_RET_OK, ret);
 
-  char_array.buffer_length = snprintf(char_array.buffer, char_array.buffer_capacity, "1234") + 1;
+  char_array.buffer_length = static_cast<std::size_t>(
+    snprintf(char_array.buffer, char_array.buffer_capacity, "1234") + 1);
   EXPECT_STREQ("1234", char_array.buffer);
 
   ret = rcutils_char_array_resize(&char_array, 0);
@@ -86,8 +89,8 @@ TEST_F(ArrayCharTest, resize) {
   EXPECT_EQ(11lu, char_array.buffer_capacity);
   EXPECT_EQ(5lu, char_array.buffer_length);
 
-  char_array.buffer_length = snprintf(
-    char_array.buffer, char_array.buffer_capacity, "0987654321") + 1;
+  char_array.buffer_length = static_cast<std::size_t>(
+    snprintf(char_array.buffer, char_array.buffer_capacity, "0987654321") + 1);
   EXPECT_STREQ("0987654321", char_array.buffer);
 
   ret = rcutils_char_array_resize(&char_array, 3);
@@ -124,8 +127,8 @@ TEST_F(ArrayCharTest, vsprintf_fail) {
   ret = example_logger(&char_array, "Long string for the case %d", 2);
   EXPECT_EQ(RCUTILS_RET_BAD_ALLOC, ret);
   rcutils_reset_error();
-
   char_array.allocator = allocator;
+
   EXPECT_EQ(RCUTILS_RET_OK, rcutils_char_array_fini(&char_array));
 }
 
