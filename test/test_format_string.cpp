@@ -17,8 +17,6 @@
 #include <string>
 
 #include "./allocator_testing_utils.h"
-#include "./mocking_utils/patch.hpp"
-
 #include "rcutils/allocator.h"
 #include "rcutils/format_string.h"
 

@@ -27,7 +27,6 @@ C_ASSERT(sizeof(void *) == sizeof(HINSTANCE));
 #endif  // _WIN32
 
 #include "rcutils/error_handling.h"
-#include "rcutils/macros.h"
 #include "rcutils/shared_library.h"
 #include "rcutils/strdup.h"
 
@@ -47,10 +46,6 @@ rcutils_load_shared_library(
   const char * library_path,
   rcutils_allocator_t allocator)
 {
-  RCUTILS_CAN_RETURN_WITH_ERROR_OF(RCUTILS_RET_INVALID_ARGUMENT);
-  RCUTILS_CAN_RETURN_WITH_ERROR_OF(RCUTILS_RET_BAD_ALLOC);
-  RCUTILS_CAN_RETURN_WITH_ERROR_OF(RCUTILS_RET_ERROR);
-
   RCUTILS_CHECK_ARGUMENT_FOR_NULL(lib, RCUTILS_RET_INVALID_ARGUMENT);
   RCUTILS_CHECK_ARGUMENT_FOR_NULL(library_path, RCUTILS_RET_INVALID_ARGUMENT);
   RCUTILS_CHECK_ALLOCATOR(&allocator, return RCUTILS_RET_INVALID_ARGUMENT);
@@ -180,7 +175,7 @@ rcutils_get_platform_library_name(
 
   int written = 0;
 
-#if defined(__linux__) || defined(__QNXNTO__)
+#ifdef __linux__
   if (debug) {
     if (buffer_size >= (strlen(library_name) + 8)) {
       written = rcutils_snprintf(
