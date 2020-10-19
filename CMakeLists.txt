@@ -28,6 +28,10 @@ if(UNIX AND NOT APPLE)
   endif()
 endif()
 
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # enables building a static library but later link it into a dynamic library
+  add_compile_options(-fPIC)
+endif()
 if(NOT WIN32)
   # About -Wno-sign-conversion: With Clang, -Wconversion implies -Wsign-conversion. There are a number of
   # implicit sign conversions in gtest.cc, see https://ci.ros2.org/job/ci_osx/9381/clang/.
@@ -61,6 +65,7 @@ set(rcutils_sources
   src/shared_library.c
   src/snprintf.c
   src/split.c
+  src/strcasecmp.c
   src/strdup.c
   src/strerror.c
   src/string_array.c
@@ -395,6 +400,13 @@ if(BUILD_TESTING)
   )
   if(TARGET test_snprintf)
     target_link_libraries(test_snprintf ${PROJECT_NAME})
+  endif()
+
+  rcutils_custom_add_gtest(test_strcasecmp
+    test/test_strcasecmp.cpp
+  )
+  if(TARGET test_strcasecmp)
+    target_link_libraries(test_strcasecmp ${PROJECT_NAME})
   endif()
 
   rcutils_custom_add_gtest(test_uint8_array
