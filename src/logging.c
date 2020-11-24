@@ -18,13 +18,12 @@ extern "C"
 #endif
 
 #include <ctype.h>
-#include <errno.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#ifdef _WIN32
+#ifdef WIN32
 # include <io.h>
 # include <windows.h>
 #else
@@ -39,24 +38,12 @@ extern "C"
 #include "rcutils/logging.h"
 #include "rcutils/snprintf.h"
 #include "rcutils/strdup.h"
-#include "rcutils/strerror.h"
 #include "rcutils/time.h"
 #include "rcutils/types/string_map.h"
 
 #define RCUTILS_LOGGING_MAX_OUTPUT_FORMAT_LEN (2048)
 
-#if defined(_WIN32)
-// Used with setvbuf, and size must be 2 <= size <= INT_MAX. For more info, see:
-// https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/setvbuf
-#define RCUTILS_LOGGING_STREAM_BUFFER_SIZE (BUFSIZ)
-#else
-// Let the system choose the appropriate size
-// glibc reference: https://sourceware.org/git/?p=glibc.git;a=blob;f=libio/iosetvbuf.c;hb=HEAD
-// OSX reference: https://opensource.apple.com/source/Libc/Libc-166/stdio.subproj/setvbuf.c.auto.html
-#define RCUTILS_LOGGING_STREAM_BUFFER_SIZE (0)
-#endif
-
-const char * const g_rcutils_log_severity_names[] = {
+const char * g_rcutils_log_severity_names[] = {
   [RCUTILS_LOG_SEVERITY_UNSET] = "UNSET",
   [RCUTILS_LOG_SEVERITY_DEBUG] = "DEBUG",
   [RCUTILS_LOG_SEVERITY_INFO] = "INFO",
@@ -75,8 +62,7 @@ enum rcutils_colorized_output
 bool g_rcutils_logging_initialized = false;
 
 char g_rcutils_logging_output_format_string[RCUTILS_LOGGING_MAX_OUTPUT_FORMAT_LEN];
-static const char * g_rcutils_logging_default_output_format =
-  "[{severity}] [{time}] [{name}]: {message}";
+static const char * g_rcutils_logging_default_output_format = "[{severity}] [{name}]: {message}";
 
 static rcutils_allocator_t g_rcutils_logging_allocator;
 
@@ -89,58 +75,14 @@ bool g_rcutils_logging_severities_map_valid = false;
 
 int g_rcutils_logging_default_logger_level = 0;
 
-static FILE * g_output_stream = NULL;
+bool g_force_stdout_line_buffered = false;
+bool g_stdout_flush_failure_reported = false;
 
 enum rcutils_colorized_output g_colorized_output = RCUTILS_COLORIZED_OUTPUT_AUTO;
 
 rcutils_ret_t rcutils_logging_initialize(void)
 {
   return rcutils_logging_initialize_with_allocator(rcutils_get_default_allocator());
-}
-
-enum rcutils_get_env_retval
-{
-  RCUTILS_GET_ENV_ERROR = -1,
-  RCUTILS_GET_ENV_ZERO = 0,
-  RCUTILS_GET_ENV_ONE = 1,
-  RCUTILS_GET_ENV_EMPTY = 2,
-};
-
-// A utility function to get zero or one from an environment variable.
-// Returns RCUTILS_GET_ENV_ERROR if we failed to get the environment variable
-// or if it was something we don't understand.
-// Return RCUTILS_GET_ENV_ZERO if the value in the environment variable is "0",
-// RCUTILS_GET_ENV_ONE if the value in the environment variable is "1", or
-// RCUTILS_GET_ENV_EMPTY if the environment variables is empty.
-static enum rcutils_get_env_retval rcutils_get_env_var_zero_or_one(
-  const char * name, const char * zero_semantic,
-  const char * one_semantic)
-{
-  const char * env_var_value = NULL;
-  const char * ret_str = rcutils_get_env(name, &env_var_value);
-  if (NULL != ret_str) {
-    RCUTILS_SET_ERROR_MSG_WITH_FORMAT_STRING(
-      "Error getting environment variable %s: %s", name,
-      ret_str);
-    return RCUTILS_GET_ENV_ERROR;
-  }
-
-  if (strcmp(env_var_value, "") == 0) {
-    return RCUTILS_GET_ENV_EMPTY;
-  }
-  if (strcmp(env_var_value, "0") == 0) {
-    return RCUTILS_GET_ENV_ZERO;
-  }
-  if (strcmp(env_var_value, "1") == 0) {
-    return RCUTILS_GET_ENV_ONE;
-  }
-
-  RCUTILS_SET_ERROR_MSG_WITH_FORMAT_STRING(
-    "Warning: unexpected value [%s] specified for %s. "
-    "Valid values are 0 (%s) or 1 (%s).",
-    env_var_value, name, zero_semantic, one_semantic);
-
-  return RCUTILS_GET_ENV_ERROR;
 }
 
 rcutils_ret_t rcutils_logging_initialize_with_allocator(rcutils_allocator_t allocator)
@@ -156,90 +98,47 @@ rcutils_ret_t rcutils_logging_initialize_with_allocator(rcutils_allocator_t allo
     g_rcutils_logging_output_handler = &rcutils_logging_console_output_handler;
     g_rcutils_logging_default_logger_level = RCUTILS_DEFAULT_LOGGER_DEFAULT_LEVEL;
 
-    const char * line_buffered = NULL;
+    // Check the environment variable for line buffered output
+    const char * line_buffered;
     const char * ret_str = rcutils_get_env("RCUTILS_CONSOLE_STDOUT_LINE_BUFFERED", &line_buffered);
+
     if (NULL == ret_str) {
-      if (strcmp(line_buffered, "") != 0) {
-        RCUTILS_SAFE_FWRITE_TO_STDERR(
-          "RCUTILS_CONSOLE_STDOUT_LINE_BUFFERED is now ignored. "
-          "Please set RCUTILS_LOGGING_USE_STDOUT and RCUTILS_LOGGING_BUFFERED_STREAM "
-          "to control the stream and the buffering of log messages.\n");
+      if (strcmp(line_buffered, "1") == 0) {
+        g_force_stdout_line_buffered = true;
+      } else if (strcmp(line_buffered, "0") != 0 && strcmp(line_buffered, "") != 0) {
+        fprintf(stderr,
+          "Warning: unexpected value [%s] specified for RCUTILS_CONSOLE_STDOUT_LINE_BUFFERED. "
+          "Default value 0 will be used. Valid values are 1 or 0.\n",
+          line_buffered);
+      }
+    } else {
+      fprintf(stderr, "Error getting env. variable "
+        "RCUTILS_CONSOLE_STDOUT_LINE_BUFFERED: %s\n", ret_str);
+      ret = RCUTILS_RET_INVALID_ARGUMENT;
+    }
+
+    // Check the environment variable for colorized output
+    const char * colorized_output;
+    ret_str = rcutils_get_env("RCUTILS_COLORIZED_OUTPUT", &colorized_output);
+
+    if (NULL == ret_str) {
+      if (strcmp(colorized_output, "1") == 0) {
+        g_colorized_output = RCUTILS_COLORIZED_OUTPUT_FORCE_ENABLE;
+      } else if (strcmp(colorized_output, "0") == 0) {
+        g_colorized_output = RCUTILS_COLORIZED_OUTPUT_FORCE_DISABLE;
+      } else if (strcmp(colorized_output, "") != 0) {
+        fprintf(
+          stderr,
+          "Warning: unexpected value [%s] specified for RCUTILS_COLORIZED_OUTPUT. "
+          "Output will be colorized if target stream is a terminal."
+          " Valid values are 0 and 1.\n",
+          colorized_output);
       }
     } else {
       RCUTILS_SET_ERROR_MSG_WITH_FORMAT_STRING(
-        "Error getting environment variable RCUTILS_CONSOLE_STDOUT_LINE_BUFFERED: %s", ret_str);
-      return RCUTILS_RET_ERROR;
-    }
-
-    // Set the default output stream for all severities to stderr so that errors
-    // are propagated immediately.
-    // The user can choose to set the output stream to stdout by setting the
-    // RCUTILS_LOGGING_USE_STDOUT environment variable to 1.
-    enum rcutils_get_env_retval retval = rcutils_get_env_var_zero_or_one(
-      "RCUTILS_LOGGING_USE_STDOUT", "use stderr", "use stdout");
-    switch (retval) {
-      case RCUTILS_GET_ENV_ERROR:
-        return RCUTILS_RET_INVALID_ARGUMENT;
-      case RCUTILS_GET_ENV_EMPTY:
-      case RCUTILS_GET_ENV_ZERO:
-        g_output_stream = stderr;
-        break;
-      case RCUTILS_GET_ENV_ONE:
-        g_output_stream = stdout;
-        break;
-      default:
-        RCUTILS_SET_ERROR_MSG(
-          "Invalid return from environment fetch");
-        return RCUTILS_RET_ERROR;
-    }
-
-    // Allow the user to choose how buffering on the stream works by setting
-    // RCUTILS_LOGGING_BUFFERED_STREAM.
-    // With an empty environment variable, use the default of the stream.
-    // With a value of 0, force the stream to be unbuffered.
-    // With a value of 1, force the stream to be line buffered.
-    retval = rcutils_get_env_var_zero_or_one(
-      "RCUTILS_LOGGING_BUFFERED_STREAM", "not buffered", "buffered");
-    if (RCUTILS_GET_ENV_ERROR == retval) {
-      return RCUTILS_RET_INVALID_ARGUMENT;
-    }
-    if (RCUTILS_GET_ENV_ZERO == retval || RCUTILS_GET_ENV_ONE == retval) {
-      int mode = retval == RCUTILS_GET_ENV_ZERO ? _IONBF : _IOLBF;
-      size_t buffer_size = (mode == _IOLBF) ? RCUTILS_LOGGING_STREAM_BUFFER_SIZE : 0;
-
-      // buffer_size cannot be 0 on Windows with IOLBF, see comments above where it's #define'd
-      if (setvbuf(g_output_stream, NULL, mode, buffer_size) != 0) {
-        char error_string[1024];
-        rcutils_strerror(error_string, sizeof(error_string));
-        RCUTILS_SET_ERROR_MSG_WITH_FORMAT_STRING(
-          "Error setting stream buffering mode: %s", error_string);
-        return RCUTILS_RET_ERROR;
-      }
-    } else if (RCUTILS_GET_ENV_EMPTY != retval) {
-      RCUTILS_SET_ERROR_MSG(
-        "Invalid return from environment fetch");
-      return RCUTILS_RET_ERROR;
-    }
-
-    retval = rcutils_get_env_var_zero_or_one(
-      "RCUTILS_COLORIZED_OUTPUT", "force color",
-      "force no color");
-    switch (retval) {
-      case RCUTILS_GET_ENV_ERROR:
-        return RCUTILS_RET_INVALID_ARGUMENT;
-      case RCUTILS_GET_ENV_EMPTY:
-        g_colorized_output = RCUTILS_COLORIZED_OUTPUT_AUTO;
-        break;
-      case RCUTILS_GET_ENV_ZERO:
-        g_colorized_output = RCUTILS_COLORIZED_OUTPUT_FORCE_DISABLE;
-        break;
-      case RCUTILS_GET_ENV_ONE:
-        g_colorized_output = RCUTILS_COLORIZED_OUTPUT_FORCE_ENABLE;
-        break;
-      default:
-        RCUTILS_SET_ERROR_MSG(
-          "Invalid return from environment fetch");
-        return RCUTILS_RET_ERROR;
+        "Failed to get if output is colorized from env. variable [%s]. Using DEFAULT.",
+        ret_str);
+      ret = RCUTILS_RET_INVALID_ARGUMENT;
     }
 
     // Check for the environment variable for custom output formatting
@@ -259,8 +158,7 @@ rcutils_ret_t rcutils_logging_initialize_with_allocator(rcutils_allocator_t allo
           ret_str);
         ret = RCUTILS_RET_INVALID_ARGUMENT;
       }
-      memcpy(
-        g_rcutils_logging_output_format_string, g_rcutils_logging_default_output_format,
+      memcpy(g_rcutils_logging_output_format_string, g_rcutils_logging_default_output_format,
         strlen(g_rcutils_logging_default_output_format) + 1);
     }
 
@@ -321,7 +219,7 @@ rcutils_logging_severity_level_from_string(
     return RCUTILS_RET_BAD_ALLOC;
   }
   for (int i = 0; severity_string_upper[i]; ++i) {
-    severity_string_upper[i] = (char)toupper(severity_string_upper[i]);
+    severity_string_upper[i] = toupper(severity_string_upper[i]);
   }
 
   // Determine the severity value matching the severity name.
@@ -342,35 +240,39 @@ rcutils_logging_severity_level_from_string(
 
 rcutils_logging_output_handler_t rcutils_logging_get_output_handler(void)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   return g_rcutils_logging_output_handler;
 }
 
 void rcutils_logging_set_output_handler(rcutils_logging_output_handler_t function)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  // *INDENT-OFF* (prevent uncrustify from making unnecessary indents here)
+  RCUTILS_LOGGING_AUTOINIT
   g_rcutils_logging_output_handler = function;
+  // *INDENT-ON*
 }
 
 int rcutils_logging_get_default_logger_level(void)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   return g_rcutils_logging_default_logger_level;
 }
 
 void rcutils_logging_set_default_logger_level(int level)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  // *INDENT-OFF* (prevent uncrustify from making unnecessary indents here)
+  RCUTILS_LOGGING_AUTOINIT
   if (RCUTILS_LOG_SEVERITY_UNSET == level) {
     // Restore the default
     level = RCUTILS_DEFAULT_LOGGER_DEFAULT_LEVEL;
   }
   g_rcutils_logging_default_logger_level = level;
+  // *INDENT-ON*
 }
 
 int rcutils_logging_get_logger_level(const char * name)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   if (NULL == name) {
     return -1;
   }
@@ -379,7 +281,7 @@ int rcutils_logging_get_logger_level(const char * name)
 
 int rcutils_logging_get_logger_leveln(const char * name, size_t name_length)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   if (NULL == name) {
     return -1;
   }
@@ -408,7 +310,8 @@ int rcutils_logging_get_logger_leveln(const char * name, size_t name_length)
   rcutils_ret_t ret = rcutils_logging_severity_level_from_string(
     severity_string, g_rcutils_logging_allocator, &severity);
   if (RCUTILS_RET_OK != ret) {
-    RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
+    fprintf(
+      stderr,
       "Logger has an invalid severity level: %s\n", severity_string);
     return -1;
   }
@@ -417,7 +320,7 @@ int rcutils_logging_get_logger_leveln(const char * name, size_t name_length)
 
 int rcutils_logging_get_logger_effective_level(const char * name)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   if (NULL == name) {
     return -1;
   }
@@ -425,7 +328,8 @@ int rcutils_logging_get_logger_effective_level(const char * name)
   while (true) {
     int severity = rcutils_logging_get_logger_leveln(name, substring_length);
     if (-1 == severity) {
-      RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
+      fprintf(
+        stderr,
         "Error getting effective level of logger '%s'\n", name);
       return -1;
     }
@@ -449,7 +353,7 @@ int rcutils_logging_get_logger_effective_level(const char * name)
 
 rcutils_ret_t rcutils_logging_set_logger_level(const char * name, int level)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   if (NULL == name) {
     RCUTILS_SET_ERROR_MSG("Invalid logger name");
     return RCUTILS_RET_INVALID_ARGUMENT;
@@ -490,14 +394,14 @@ rcutils_ret_t rcutils_logging_set_logger_level(const char * name, int level)
 
 bool rcutils_logging_logger_is_enabled_for(const char * name, int severity)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   int logger_level = g_rcutils_logging_default_logger_level;
   if (name) {
     logger_level = rcutils_logging_get_logger_effective_level(name);
     if (-1 == logger_level) {
-      RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
-        "Error determining if logger '%s' is enabled for severity '%d'\n",
-        name, severity);
+      fprintf(
+        stderr,
+        "Error determining if logger '%s' is enabled for severity '%d'\n", name, severity);
       return false;
     }
   }
@@ -608,11 +512,10 @@ const char * expand_line_number(
   }
 
   // Even in the case of truncation the result will still be null-terminated.
-  int written = rcutils_snprintf(
-    line_number_expansion, sizeof(line_number_expansion), "%zu", location->line_number);
+  int written = rcutils_snprintf(line_number_expansion, sizeof(line_number_expansion), "%zu",
+      location->line_number);
   if (written < 0) {
-    RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
-      "failed to format line number: '%zu'\n", location->line_number);
+    fprintf(stderr, "failed to format line number: '%zu'\n", location->line_number);
     return NULL;
   }
 
@@ -766,7 +669,7 @@ rcutils_ret_t rcutils_logging_format_message(
   return status;
 }
 
-#ifdef _WIN32
+#ifdef WIN32
 # define COLOR_NORMAL 7
 # define COLOR_RED 4
 # define COLOR_GREEN 2
@@ -780,14 +683,14 @@ rcutils_ret_t rcutils_logging_format_message(
 # define IS_STREAM_A_TTY(stream) (isatty(fileno(stream)) != 0)
 #endif
 
-#define IS_OUTPUT_COLORIZED(is_colorized) \
+#define IS_OUTPUT_COLORIZED(is_colorized, stream) \
   { \
     if (g_colorized_output == RCUTILS_COLORIZED_OUTPUT_FORCE_ENABLE) { \
       is_colorized = true; \
     } else if (g_colorized_output == RCUTILS_COLORIZED_OUTPUT_FORCE_DISABLE) { \
       is_colorized = false; \
     } else { \
-      is_colorized = IS_STREAM_A_TTY(g_output_stream); \
+      is_colorized = IS_STREAM_A_TTY(stream); \
     } \
   }
 #define SET_COLOR_WITH_SEVERITY(status, severity, color) \
@@ -807,52 +710,49 @@ rcutils_ret_t rcutils_logging_format_message(
         color = COLOR_RED; \
         break; \
       default: \
-        RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING( \
-          "unknown severity level: %d\n", severity); \
+        fprintf(stderr, "unknown severity level: %d\n", severity); \
         status = RCUTILS_RET_INVALID_ARGUMENT; \
     } \
   }
-#ifdef _WIN32
+#ifdef WIN32
 # define SET_OUTPUT_COLOR_WITH_COLOR(status, color, handle) \
   { \
     if (RCUTILS_RET_OK == status) { \
       if (!SetConsoleTextAttribute(handle, color)) { \
         DWORD error = GetLastError(); \
-        RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING( \
-          "SetConsoleTextAttribute failed with error code %lu.\n", error); \
+        fprintf(stderr, "SetConsoleTextAttribute failed with error code %lu.\n", error); \
         status = RCUTILS_RET_ERROR; \
       } \
     } \
   }
-# define GET_HANDLE_FROM_STREAM(status, handle) \
+# define GET_HANDLE_FROM_STREAM(status, handle, stream) \
   { \
     if (RCUTILS_RET_OK == status) { \
-      if (g_output_stream == stdout) { \
+      if (stream == stdout) { \
         handle = GetStdHandle(STD_OUTPUT_HANDLE); \
       } else { \
         handle = GetStdHandle(STD_ERROR_HANDLE); \
       } \
       if (INVALID_HANDLE_VALUE == handle) { \
         DWORD error = GetLastError(); \
-        RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING( \
-          "GetStdHandle failed with error code %lu.\n", error); \
+        fprintf(stderr, "GetStdHandle failed with error code %lu.\n", error); \
         status = RCUTILS_RET_ERROR; \
       } \
     } \
   }
-# define SET_OUTPUT_COLOR_WITH_SEVERITY(status, severity, output_array) \
+# define SET_OUTPUT_COLOR_WITH_SEVERITY(status, severity, stream, output_array) \
   { \
     WORD color = COLOR_NORMAL; \
     HANDLE handle = INVALID_HANDLE_VALUE; \
     SET_COLOR_WITH_SEVERITY(status, severity, color) \
-    GET_HANDLE_FROM_STREAM(status, handle) \
+    GET_HANDLE_FROM_STREAM(status, handle, stream) \
     SET_OUTPUT_COLOR_WITH_COLOR(status, color, handle) \
   }
-# define SET_STANDARD_COLOR_IN_STREAM(is_colorized, status) \
+# define SET_STANDARD_COLOR_IN_STREAM(is_colorized, status, stream) \
   { \
     if (is_colorized) { \
       HANDLE handle = INVALID_HANDLE_VALUE; \
-      GET_HANDLE_FROM_STREAM(status, handle) \
+      GET_HANDLE_FROM_STREAM(status, handle, stream) \
       SET_OUTPUT_COLOR_WITH_COLOR(status, COLOR_NORMAL, handle) \
     } \
   }
@@ -863,13 +763,12 @@ rcutils_ret_t rcutils_logging_format_message(
     if (RCUTILS_RET_OK == status) { \
       status = rcutils_char_array_strncat(&output_array, color, strlen(color)); \
       if (RCUTILS_RET_OK != status) { \
-        RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING( \
-          "Error: rcutils_char_array_strncat failed with: %d\n", \
+        fprintf(stderr, "Error: rcutils_char_array_strncat failed with: %d\n", \
           status); \
       } \
     } \
   }
-# define SET_OUTPUT_COLOR_WITH_SEVERITY(status, severity, output_array) \
+# define SET_OUTPUT_COLOR_WITH_SEVERITY(status, severity, stream, output_array) \
   { \
     const char * color = NULL; \
     SET_COLOR_WITH_SEVERITY(status, severity, color) \
@@ -881,7 +780,7 @@ rcutils_ret_t rcutils_logging_format_message(
       SET_OUTPUT_COLOR_WITH_COLOR(status, COLOR_NORMAL, output_array) \
     } \
   }
-# define SET_STANDARD_COLOR_IN_STREAM(is_colorized, status)
+# define SET_STANDARD_COLOR_IN_STREAM(is_colorized, status, stream)
 #endif
 
 void rcutils_logging_console_output_handler(
@@ -893,25 +792,29 @@ void rcutils_logging_console_output_handler(
   bool is_colorized = false;
 
   if (!g_rcutils_logging_initialized) {
-    RCUTILS_SAFE_FWRITE_TO_STDERR(
-      "logging system isn't initialized: "
+    fprintf(
+      stderr,
+      "logging system isn't initialized: " \
       "call to rcutils_logging_console_output_handler failed.\n");
     return;
   }
+  FILE * stream = NULL;
   switch (severity) {
     case RCUTILS_LOG_SEVERITY_DEBUG:
     case RCUTILS_LOG_SEVERITY_INFO:
+      stream = stdout;
+      break;
     case RCUTILS_LOG_SEVERITY_WARN:
     case RCUTILS_LOG_SEVERITY_ERROR:
     case RCUTILS_LOG_SEVERITY_FATAL:
+      stream = stderr;
       break;
     default:
-      RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
-        "unknown severity level: %d\n", severity);
+      fprintf(stderr, "unknown severity level: %d\n", severity);
       return;
   }
 
-  IS_OUTPUT_COLORIZED(is_colorized)
+  IS_OUTPUT_COLORIZED(is_colorized, stream)
 
   char msg_buf[1024] = "";
   rcutils_char_array_t msg_array = {
@@ -932,7 +835,7 @@ void rcutils_logging_console_output_handler(
   };
 
   if (is_colorized) {
-    SET_OUTPUT_COLOR_WITH_SEVERITY(status, severity, output_array)
+    SET_OUTPUT_COLOR_WITH_SEVERITY(status, severity, stream, output_array)
   }
 
   if (RCUTILS_RET_OK == status) {
@@ -940,8 +843,8 @@ void rcutils_logging_console_output_handler(
     va_copy(args_clone, *args);
     status = rcutils_char_array_vsprintf(&msg_array, format, args_clone);
     if (RCUTILS_RET_OK != status) {
-      RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
-        "Error: rcutils_char_array_vsprintf failed with: %d\n", status);
+      fprintf(stderr, "Error: rcutils_char_array_vsprintf failed with: %d\n",
+        status);
     }
     va_end(args_clone);
   }
@@ -950,8 +853,8 @@ void rcutils_logging_console_output_handler(
     status = rcutils_logging_format_message(
       location, severity, name, timestamp, msg_array.buffer, &output_array);
     if (RCUTILS_RET_OK != status) {
-      RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
-        "Error: rcutils_logging_format_message failed with: %d\n", status);
+      fprintf(stderr, "Error: rcutils_logging_format_message failed with: %d\n",
+        status);
     }
   }
 
@@ -959,20 +862,29 @@ void rcutils_logging_console_output_handler(
   SET_STANDARD_COLOR_IN_BUFFER(is_colorized, status, output_array)
 
   if (RCUTILS_RET_OK == status) {
-    fprintf(g_output_stream, "%s\n", output_array.buffer);
+    fprintf(stream, "%s\n", output_array.buffer);
+
+    if (g_force_stdout_line_buffered && stream == stdout) {
+      int flush_result = fflush(stream);
+      if (flush_result != 0 && !g_stdout_flush_failure_reported) {
+        g_stdout_flush_failure_reported = true;
+        fprintf(stderr, "Error: failed to perform fflush on stdout, fflush return code is: %d\n",
+          flush_result);
+      }
+    }
   }
 
   // Only does something in windows
   // cppcheck-suppress uninitvar  // suppress cppcheck false positive
-  SET_STANDARD_COLOR_IN_STREAM(is_colorized, status)
+  SET_STANDARD_COLOR_IN_STREAM(is_colorized, status, stream)
 
   status = rcutils_char_array_fini(&msg_array);
   if (RCUTILS_RET_OK != status) {
-    RCUTILS_SAFE_FWRITE_TO_STDERR("Failed to fini array.\n");
+    fprintf(stderr, "Failed to fini array.\n");
   }
   status = rcutils_char_array_fini(&output_array);
   if (RCUTILS_RET_OK != status) {
-    RCUTILS_SAFE_FWRITE_TO_STDERR("Failed to fini array.\n");
+    fprintf(stderr, "Failed to fini array.\n");
   }
 }
 

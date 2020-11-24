@@ -55,12 +55,12 @@ TEST(test_uint8_array, resize) {
   EXPECT_EQ(5u, uint8_array.buffer_length);
 
   for (uint8_t i = 0; i < 10; ++i) {
-    uint8_t u = static_cast<uint8_t>(0xFF - i);
+    uint8_t u = 0xFF - i;
     memcpy(uint8_array.buffer + i, &u, 1);
   }
   uint8_array.buffer_length = 10lu;
   for (size_t i = 0; i < uint8_array.buffer_length; ++i) {
-    uint8_t u = static_cast<uint8_t>(0xFF - i);
+    uint8_t u = 0xFF - static_cast<uint8_t>(i);
     EXPECT_EQ(u, uint8_array.buffer[i]);
   }
 
@@ -72,8 +72,6 @@ TEST(test_uint8_array, resize) {
   EXPECT_EQ(0xFF - 1, uint8_array.buffer[1]);
   EXPECT_EQ(0xFF - 2, uint8_array.buffer[2]);
   // the other fields are garbage.
-
-  ASSERT_EQ(RCUTILS_RET_OK, rcutils_uint8_array_resize(&uint8_array, 3));
 
   // cleanup only 3 fields
   EXPECT_EQ(RCUTILS_RET_OK, rcutils_uint8_array_fini(&uint8_array));

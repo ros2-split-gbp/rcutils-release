@@ -17,6 +17,7 @@ extern "C"
 {
 #endif
 
+#define _GNU_SOURCE
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,7 +47,7 @@ char * rcutils_get_executable_name(rcutils_allocator_t allocator)
   RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
     &allocator, "invalid allocator", return NULL);
 
-#if defined __APPLE__ || defined __FreeBSD__ || (defined __ANDROID__ && __ANDROID_API__ >= 21)
+#if defined __APPLE__ || (defined __ANDROID__ && __ANDROID_API__ >= 21)
   const char * appname = getprogname();
 #elif defined __GNUC__ && !defined(__QNXNTO__)
   const char * appname = program_invocation_name;
@@ -73,7 +74,7 @@ char * rcutils_get_executable_name(rcutils_allocator_t allocator)
   }
 
   // Get just the executable name (Unix may return the absolute path)
-#if defined __APPLE__ || defined __FreeBSD__ || defined __GNUC__
+#if defined __APPLE__ || defined __GNUC__
   // We need an intermediate copy because basename may modify its arguments
   char * intermediate = allocator.allocate(applen + 1, allocator.state);
   if (NULL == intermediate) {
