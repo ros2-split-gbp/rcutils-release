@@ -2,20 +2,166 @@
 Changelog for package rcutils
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.7.6 (2020-11-24)
+3.0.0 (2020-12-02)
 ------------------
-* Add QNX support for rcutils_get_executable_name. (`#282 <https://github.com/ros2/rcutils/issues/282>`_) (`#308 <https://github.com/ros2/rcutils/issues/308>`_)
-* Contributors: Ahmed Sobhy, Jacob Perron
+* Update rcutils_calculate_directory_size() to support recursion (`#306 <https://github.com/ros2/rcutils/issues/306>`_)
+* Updating QD to QL 1 (`#317 <https://github.com/ros2/rcutils/issues/317>`_)
+* Address unused return values found in scan-build (`#316 <https://github.com/ros2/rcutils/issues/316>`_)
+* use one copy for continuous area instead of loop copy (`#312 <https://github.com/ros2/rcutils/issues/312>`_)
+* use a better way to check whether string is empty (`#315 <https://github.com/ros2/rcutils/issues/315>`_)
+* Use helper funciton to copy string (`#314 <https://github.com/ros2/rcutils/issues/314>`_)
+* Disable a Windows platform warning. (`#311 <https://github.com/ros2/rcutils/issues/311>`_)
+* Fix format of code description on document (`#313 <https://github.com/ros2/rcutils/issues/313>`_)
+* Make sure to check the return values of rcutils APIs. (`#302 <https://github.com/ros2/rcutils/issues/302>`_)
+* Contributors: Barry Xu, Chen Lihui, Chris Lalancette, Stephen Brawner
 
-0.7.5 (2019-12-10)
+2.2.0 (2020-10-19)
 ------------------
-* Fix uninitialized handle error (`#187 <https://github.com/ros2/rcutils/issues/187>`_) (`#191 <https://github.com/ros2/rcutils/issues/191>`_)
-* Contributors: Karsten Knese, Sean Kelly
+* Add rcutils_expand_user() to expand user directory in path (`#298 <https://github.com/ros2/rcutils/issues/298>`_)
+* Update the maintainers. (`#299 <https://github.com/ros2/rcutils/issues/299>`_)
+* Remove the temporary variable in RCUTILS_LOGGING_AUTOINIT (`#290 <https://github.com/ros2/rcutils/issues/290>`_)
+* Contributors: Chris Lalancette, Christophe Bedard, Felix Endres
 
-0.7.4 (2019-11-11)
+2.1.0 (2020-10-02)
 ------------------
-* Use Win32 wrapper around 64 bit atomic operations (`#186 <https://github.com/ros2/rcutils/issues/186>`_) (`#188 <https://github.com/ros2/rcutils/issues/188>`_)
+* Add RCUTILS_NO_FAULT_INJECTION() macro. (`#295 <https://github.com/ros2/rcutils/issues/295>`_)
+* Inject faults on rcutils_get_env() and rcutils_set_env() call. (`#292 <https://github.com/ros2/rcutils/issues/292>`_)
+* env.h and get_env.h docblock fixes (`#291 <https://github.com/ros2/rcutils/issues/291>`_)
+* Introduce rcutils_strcasecmp, case insensitive string compare. (`#280 <https://github.com/ros2/rcutils/issues/280>`_)
+* Stop using fprintf to avoid using file handles by changing as few lines of code as possible. (`#289 <https://github.com/ros2/rcutils/issues/289>`_)
+* Defines QNX implementation for rcutils_get_platform_library_name (`#287 <https://github.com/ros2/rcutils/issues/287>`_)
+* Contributors: Ahmed Sobhy, Ivan Santiago Paunovic, Michel Hidalgo, tomoya
+
+2.0.0 (2020-08-28)
+------------------
+* Add RCUTILS_CAN_SET_ERROR_MSG_AND_RETURN_WITH_ERROR_OF() macro. (`#284 <https://github.com/ros2/rcutils/issues/284>`_)
+  To fault inject error messages as well as return codes.
+* Change rcutils_fault_injection_set_count to use int64_t (`#283 <https://github.com/ros2/rcutils/issues/283>`_)
+* adds QNX support for rcutils_get_executable_name (`#282 <https://github.com/ros2/rcutils/issues/282>`_)
+* Add fault injection hooks to default allocator (`#277 <https://github.com/ros2/rcutils/issues/277>`_)
+* Fault injection macros and functionality (plus example) (`#264 <https://github.com/ros2/rcutils/issues/264>`_)
+* ensure -fPIC is used when building a static lib (`#276 <https://github.com/ros2/rcutils/issues/276>`_)
+* Drop vsnprintf mocks entirely. (`#275 <https://github.com/ros2/rcutils/issues/275>`_)
+  Binary API is not portable across platforms and compilation config.
+* Fix vsnprintf mocks for Release builds. (`#274 <https://github.com/ros2/rcutils/issues/274>`_)
+* Improve test coverage mocking system calls (`#272 <https://github.com/ros2/rcutils/issues/272>`_)
+* Use mimick/mimick.h header (`#273 <https://github.com/ros2/rcutils/issues/273>`_)
+* Add mock test for rcutils/strerror (`#265 <https://github.com/ros2/rcutils/issues/265>`_)
+* Add compiler option -Wconversion and add explicit casts for conversions that may alter the value or change the sign (`#263 <https://github.com/ros2/rcutils/issues/263>`_)
+  See https://github.com/ros2/rcutils/pull/263#issuecomment-663252537.
+* Removed doxygen warnings (`#266 <https://github.com/ros2/rcutils/issues/266>`_) (`#268 <https://github.com/ros2/rcutils/issues/268>`_)
+* Removed doxygen warnings (`#266 <https://github.com/ros2/rcutils/issues/266>`_)
+* Force _GNU_SOURCE if glibc is used. (`#267 <https://github.com/ros2/rcutils/issues/267>`_)
+* Add parenthesis around the argument in time conversion macros defined in time.h (`#261 <https://github.com/ros2/rcutils/issues/261>`_)
+* Contributors: Ahmed Sobhy, Alejandro Hernández Cordero, Dirk Thomas, Johannes Meyer, Jorge Perez, Michel Hidalgo, brawner
+
+1.1.0 (2020-06-26)
+------------------
+* Add token join macros (`#262 <https://github.com/ros2/rcutils/issues/262>`_)
+* Add rcutils_string_array_sort function (`#248 <https://github.com/ros2/rcutils/issues/248>`_)
+* Add rcutils_string_array_resize function (`#247 <https://github.com/ros2/rcutils/issues/247>`_)
+* Increase testing coverage of rcutils to 95% (`#258 <https://github.com/ros2/rcutils/issues/258>`_)
+* Update QUALITY_DECLARATION to reflect QL 2 status (`#260 <https://github.com/ros2/rcutils/issues/260>`_)
+* Update version stability section of quality declaration for 1.0 (`#256 <https://github.com/ros2/rcutils/issues/256>`_)
+* Contributors: Alejandro Hernández Cordero, Jorge Perez, Karsten Knese, Michel Hidalgo, Scott K Logan, Steven! Ragnarök, Stephen Brawner
+
+1.0.1 (2020-06-03)
+------------------
+* Set appropriate size for buffered logging on Windows (logging.c) (`#259 <https://github.com/ros2/rcutils/issues/259>`_)
+* Add Security Vulnerability Policy pointing to REP-2006
+* Updates to QD to be more like other ones
+* Contributors: Chris Lalancette, Stephen Brawner
+
+1.0.0 (2020-05-26)
+------------------
+* Improved implementation and testing for empty ``rcutils_string_array_t`` (`#246 <https://github.com/ros2/rcutils/issues/246>`_)
+* Contributors: Scott K Logan
+
+0.9.2 (2020-05-22)
+------------------
+* Move likely/unlikely macros from logging.h to macros.h (`#253 <https://github.com/ros2/rcutils/issues/253>`_)
+* Add rcutils_set_env function (`#250 <https://github.com/ros2/rcutils/issues/250>`_)
+* Reset error state after testing expected errors (`#251 <https://github.com/ros2/rcutils/issues/251>`_)
+* Fix a link to REP-2004 (`#245 <https://github.com/ros2/rcutils/issues/245>`_)
+* Contributors: Ivan Santiago Paunovic, Scott K Logan, Shota Aoki
+
+0.9.1 (2020-05-08)
+------------------
+* Blast545/fix qd missing section (`#243 <https://github.com/ros2/rcutils/issues/243>`_)
+* update rcutils_get_env to always use getenv (`#237 <https://github.com/ros2/rcutils/issues/237>`_)
+* Contributors: Jorge Perez, Suyash Behera
+
+0.9.0 (2020-04-24)
+------------------
+* Improved documentation (`#225 <https://github.com/ros2/rcutils/issues/225>`_)
+* Increased test coverage (`#224 <https://github.com/ros2/rcutils/issues/224>`_)
+* Set errno to EINVAL when explicitly returning -1 (`#239 <https://github.com/ros2/rcutils/issues/239>`_)
+* Don't assume errno is set to 0 on success on Windows (`#238 <https://github.com/ros2/rcutils/issues/238>`_)
+* Make sure to initialize buffers for logging testing (`#233 <https://github.com/ros2/rcutils/issues/233>`_)
+* Add deprecated with message macro (`#235 <https://github.com/ros2/rcutils/issues/235>`_)
+* Don't check GetLastError() on success (`#236 <https://github.com/ros2/rcutils/issues/236>`_)
+* Add a RCUTILS_DEPRECATED macro to enable platform specific deprecation (`#234 <https://github.com/ros2/rcutils/issues/234>`_)
+* Don't leak memory on realloc failing (`#232 <https://github.com/ros2/rcutils/issues/232>`_)
+* Assume WIN32 HINSTANCE is a void * (`#230 <https://github.com/ros2/rcutils/issues/230>`_)
+* Use ament_export_targets() (`#228 <https://github.com/ros2/rcutils/issues/228>`_)
+* Add freebsd support (`#223 <https://github.com/ros2/rcutils/issues/223>`_)
+* Added debug version for library names (`#227 <https://github.com/ros2/rcutils/issues/227>`_)
+* Fixed condition in rcutils_get_platform_library_name (`#226 <https://github.com/ros2/rcutils/issues/226>`_)
+* Added rcutils_is_shared_library_loaded function (`#222 <https://github.com/ros2/rcutils/issues/222>`_)
+* Export interfaces in a addition to include directories / libraries (`#221 <https://github.com/ros2/rcutils/issues/221>`_)
+* Included utils to load, unload and get symbols from shared libraries (`#215 <https://github.com/ros2/rcutils/issues/215>`_)
+* Check and link against libatomic (`#172 <https://github.com/ros2/rcutils/issues/172>`_) (`#178 <https://github.com/ros2/rcutils/issues/178>`_)
+* Remove test for large allocation failure (`#214 <https://github.com/ros2/rcutils/issues/214>`_)
+* Increase rcutils line testing coverage  (`#208 <https://github.com/ros2/rcutils/issues/208>`_)
+* Don't both print with fprintf and RCUTILS_SET_ERROR_MSG. (`#213 <https://github.com/ros2/rcutils/issues/213>`_)
+* All logging to the same stream (`#196 <https://github.com/ros2/rcutils/issues/196>`_)
+* Style update to match uncrustify with explicit language (`#210 <https://github.com/ros2/rcutils/issues/210>`_)
+* Add in a concurrent test to test_logging_output_format.py (`#209 <https://github.com/ros2/rcutils/issues/209>`_)
+* Fix bug in split function (`#206 <https://github.com/ros2/rcutils/issues/206>`_)
+* Fixes in comments (`#207 <https://github.com/ros2/rcutils/issues/207>`_)
+* Code style only: wrap after open parenthesis if not in one line (`#203 <https://github.com/ros2/rcutils/issues/203>`_)
+* Split visibility macro project independent logic (`#194 <https://github.com/ros2/rcutils/issues/194>`_)
+* Increase max length of env var value on Windows to 32767 (`#201 <https://github.com/ros2/rcutils/issues/201>`_)
+* Improve error message on Windows when rcutils_get_env fails (`#200 <https://github.com/ros2/rcutils/issues/200>`_)
+* Fix filesystem tests to account for extra byte on Windows (`#199 <https://github.com/ros2/rcutils/issues/199>`_)
+* Calculate file and directory size (`#197 <https://github.com/ros2/rcutils/issues/197>`_)
+* Fix race in rcutils launch_tests (`#193 <https://github.com/ros2/rcutils/issues/193>`_)
+* Changing default logging format to include timestamp (`#190 <https://github.com/ros2/rcutils/issues/190>`_)
+* Contributors: Alejandro Hernández Cordero, Chris Lalancette, Dirk Thomas, Jorge Perez, Karsten Knese, Peter Baughman, Scott K Logan, Shane Loretz, Steven Macenski, Thomas Moulard, Tully Foote, Michael Dodson
+
+0.8.4 (2019-11-18)
+------------------
+* fix type of logging feature keys (`#192 <https://github.com/ros2/rcutils/issues/192>`_)
+* Contributors: Dirk Thomas
+
+0.8.3 (2019-11-12)
+------------------
+* Fix uninitialized handle error (`#187 <https://github.com/ros2/rcutils/issues/187>`_)
+* Use Win32 wrapper around 64 bit atomic operations (`#186 <https://github.com/ros2/rcutils/issues/186>`_)
 * Contributors: Sean Kelly
+
+0.8.2 (2019-10-23)
+------------------
+* Specify working directory for filesystem test (`#185 <https://github.com/ros2/rcutils/issues/185>`_)
+* Make use of time source type for throttling logs (`#183 <https://github.com/ros2/rcutils/issues/183>`_)
+* Remove ready_fn - will be replaced by ReadyToTest() (`#184 <https://github.com/ros2/rcutils/issues/184>`_)
+* Contributors: Brian Marchi, Dan Rose, Peter Baughman
+
+0.8.1 (2019-10-03)
+------------------
+* Implement rcutils_mkdir. (`#166 <https://github.com/ros2/rcutils/issues/166>`_)
+* Contributors: Chris Lalancette
+
+0.8.0 (2019-09-24)
+------------------
+* Make g_rcutils_log_severity_names public and immutable. (`#180 <https://github.com/ros2/rcutils/issues/180>`_)
+* use _WIN32 instead of WIN32 (`#179 <https://github.com/ros2/rcutils/issues/179>`_)
+* Revert "check and link against libatomic (`#172 <https://github.com/ros2/rcutils/issues/172>`_)" (`#177 <https://github.com/ros2/rcutils/issues/177>`_)
+* check and link against libatomic (`#172 <https://github.com/ros2/rcutils/issues/172>`_)
+* Rewrite test_logging_throttle tests: (`#167 <https://github.com/ros2/rcutils/issues/167>`_)
+* Disable uncrustify indentation check for macros that use windows  `__pragma` (`#164 <https://github.com/ros2/rcutils/issues/164>`_)
+* Fix armhf warning (`#163 <https://github.com/ros2/rcutils/issues/163>`_)
+* Contributors: Christian Rauch, Dirk Thomas, Emerson Knapp, Michel Hidalgo, Shane Loretz, jpsamper2009
 
 0.7.3 (2019-05-29)
 ------------------

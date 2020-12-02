@@ -38,7 +38,8 @@ rcutils_char_array_init(
   const rcutils_allocator_t * allocator)
 {
   RCUTILS_CHECK_ARGUMENT_FOR_NULL(char_array, RCUTILS_RET_ERROR);
-  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(allocator, "char array has no valid allocator",
+  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+    allocator, "char array has no valid allocator",
     return RCUTILS_RET_ERROR);
 
   char_array->owns_buffer = true;
@@ -55,6 +56,7 @@ rcutils_char_array_init(
       char_array->buffer_capacity = 0lu;
       char_array->buffer_length = 0lu;
       return RCUTILS_RET_BAD_ALLOC);
+    char_array->buffer[0] = '\0';
   }
 
   return RCUTILS_RET_OK;
@@ -67,7 +69,8 @@ rcutils_char_array_fini(rcutils_char_array_t * char_array)
 
   if (char_array->owns_buffer) {
     rcutils_allocator_t * allocator = &char_array->allocator;
-    RCUTILS_CHECK_ALLOCATOR_WITH_MSG(allocator, "char array has no valid allocator",
+    RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+      allocator, "char array has no valid allocator",
       return RCUTILS_RET_ERROR);
 
     allocator->deallocate(char_array->buffer, allocator->state);
@@ -91,7 +94,8 @@ rcutils_char_array_resize(rcutils_char_array_t * char_array, size_t new_size)
   }
 
   rcutils_allocator_t * allocator = &char_array->allocator;
-  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(allocator, "char array has no valid allocator",
+  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+    allocator, "char array has no valid allocator",
     return RCUTILS_RET_ERROR);
 
   if (new_size == char_array->buffer_capacity) {
@@ -104,11 +108,12 @@ rcutils_char_array_resize(rcutils_char_array_t * char_array, size_t new_size)
   size_t old_length = char_array->buffer_length;
 
   if (char_array->owns_buffer) {  // we own the buffer, we can do whatever we want
-    char_array->buffer = rcutils_reallocf(char_array->buffer, new_size * sizeof(char), allocator);
+    char * new_buf = rcutils_reallocf(char_array->buffer, new_size * sizeof(char), allocator);
     RCUTILS_CHECK_FOR_NULL_WITH_MSG(
-      char_array->buffer,
+      new_buf,
       "failed to reallocate memory for char array",
       return RCUTILS_RET_BAD_ALLOC);
+    char_array->buffer = new_buf;
   } else {  // we don't realloc memory we don't own. instead, we alloc some new space
     rcutils_ret_t ret = rcutils_char_array_init(char_array, new_size, allocator);
     if (ret != RCUTILS_RET_OK) {

@@ -30,18 +30,14 @@ bool rcutils_cli_option_exist(char ** begin, char ** end, const char * option)
 char * rcutils_cli_get_option(char ** begin, char ** end, const char * option)
 {
   size_t idx = 0;
-  size_t end_idx = end - begin;
+  size_t end_idx = (size_t)(end - begin);
   for (; idx < end_idx; ++idx) {
     if (strncmp(begin[idx], option, strlen(option)) == 0) {
       break;
     }
   }
 
-  if (idx == end_idx) {
-    return NULL;
-  }
-
-  if (begin[idx] != NULL && begin[++idx] != NULL) {
+  if (idx < end_idx - 1 && begin[idx++] != NULL) {
     return begin[idx];
   }
 

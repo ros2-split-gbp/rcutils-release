@@ -16,9 +16,10 @@
 
 #include <string>
 
+#include "rcutils/env.h"
 #include "rcutils/get_env.h"
 
-/* Tests the default allocator.
+/* Tests rcutils_get_env.
  *
  * Expected environment variables must be set by the calling code:
  *
@@ -45,4 +46,27 @@ TEST(TestGetEnv, test_get_env) {
   EXPECT_FALSE(ret);
   EXPECT_FALSE(NULL == env);
   EXPECT_STREQ("", env);
+}
+
+TEST(TestGetEnv, test_get_home) {
+  EXPECT_STRNE(NULL, rcutils_get_home_dir());
+  const char * home = NULL;
+
+#ifdef _WIN32
+  // Assert pre-condition that USERPROFILE is defined
+  const char * ret = rcutils_get_env("USERPROFILE", &home);
+  ASSERT_EQ(NULL, ret);
+
+  // Check USERPROFILE is not defined
+  EXPECT_TRUE(rcutils_set_env("USERPROFILE", NULL));
+  EXPECT_EQ(NULL, rcutils_get_home_dir());
+#else
+  // Assert pre-condition that HOME is defined
+  const char * ret = rcutils_get_env("HOME", &home);
+  ASSERT_EQ(NULL, ret);
+
+  // Check HOME is not defined
+  EXPECT_TRUE(rcutils_set_env("HOME", NULL));
+  EXPECT_EQ(NULL, rcutils_get_home_dir());
+#endif
 }
