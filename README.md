@@ -1,3 +1,26 @@
+## rcutils (eloquent) - 0.8.5-1
+
+The packages in the `rcutils` repository were released into the `eloquent` distro by running `/usr/bin/bloom-release --ros-distro eloquent rcutils` on `Fri, 04 Dec 2020 21:36:13 -0000`
+
+The `rcutils` package was released.
+
+Version of package(s) in repository `rcutils`:
+
+- upstream repository: https://github.com/ros2/rcutils.git
+- release repository: https://github.com/ros2-gbp/rcutils-release.git
+- rosdistro version: `0.8.4-1`
+- old version: `0.8.4-1`
+- new version: `0.8.5-1`
+
+Versions of tools used:
+
+- bloom version: `0.10.0`
+- catkin_pkg version: `0.4.23`
+- rosdep version: `0.20.0`
+- rosdistro version: `0.8.3`
+- vcstools version: `0.1.42`
+
+
 ## rcutils (rolling) - 3.0.0-1
 
 The packages in the `rcutils` repository were released into the `rolling` distro by running `/usr/bin/bloom-release --track rolling --rosdistro rolling rcutils` on `Wed, 02 Dec 2020 14:17:16 -0000`
