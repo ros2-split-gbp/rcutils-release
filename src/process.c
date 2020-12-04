@@ -17,23 +17,13 @@ extern "C"
 {
 #endif
 
+#define _GNU_SOURCE
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
 #if defined _WIN32 || defined __CYGWIN__
-// When building with MSVC 19.28.29333.0 on Windows 10 (as of 2020-11-11),
-// there appears to be a problem with winbase.h (which is included by
-// Windows.h).  In particular, warnings of the form:
-//
-// warning C5105: macro expansion producing 'defined' has undefined behavior
-//
-// See https://developercommunity.visualstudio.com/content/problem/695656/wdk-and-sdk-are-not-compatible-with-experimentalpr.html
-// for more information.  For now disable that warning when including windows.h
-#pragma warning(push)
-#pragma warning(disable : 5105)
 #include <Windows.h>
-#pragma warning(pop)
 #else
 #include <libgen.h>
 #include <unistd.h>
@@ -42,7 +32,6 @@ extern "C"
 #include "rcutils/allocator.h"
 #include "rcutils/error_handling.h"
 #include "rcutils/process.h"
-#include "rcutils/strdup.h"
 
 int rcutils_get_pid(void)
 {
@@ -58,9 +47,9 @@ char * rcutils_get_executable_name(rcutils_allocator_t allocator)
   RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
     &allocator, "invalid allocator", return NULL);
 
-#if defined __APPLE__ || defined __FreeBSD__ || (defined __ANDROID__ && __ANDROID_API__ >= 21)
+#if defined __APPLE__ || (defined __ANDROID__ && __ANDROID_API__ >= 21)
   const char * appname = getprogname();
-#elif defined __GNUC__ && !defined(__QNXNTO__)
+#elif defined __GNUC__
   const char * appname = program_invocation_name;
 #elif defined _WIN32 || defined __CYGWIN__
   char appname[MAX_PATH];
@@ -68,9 +57,6 @@ char * rcutils_get_executable_name(rcutils_allocator_t allocator)
   if (size == 0) {
     return NULL;
   }
-#elif defined __QNXNTO__
-  extern char * __progname;
-  const char * appname = __progname;
 #else
 #error "Unsupported OS"
 #endif
@@ -85,13 +71,15 @@ char * rcutils_get_executable_name(rcutils_allocator_t allocator)
   }
 
   // Get just the executable name (Unix may return the absolute path)
-#if defined __APPLE__ || defined __FreeBSD__ || defined __GNUC__
+#if defined __APPLE__ || defined __GNUC__
   // We need an intermediate copy because basename may modify its arguments
-  char * intermediate = rcutils_strdup(appname, allocator);
+  char * intermediate = allocator.allocate(applen + 1, allocator.state);
   if (NULL == intermediate) {
     allocator.deallocate(executable_name, allocator.state);
     return NULL;
   }
+  memcpy(intermediate, appname, applen);
+  intermediate[applen] = '\0';
 
   char * bname = basename(intermediate);
   size_t baselen = strlen(bname);

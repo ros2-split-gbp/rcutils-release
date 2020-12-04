@@ -17,8 +17,6 @@
 #include <string>
 
 #include "./allocator_testing_utils.h"
-#include "./mocking_utils/patch.hpp"
-
 #include "rcutils/allocator.h"
 #include "rcutils/format_string.h"
 
@@ -36,15 +34,6 @@ TEST(test_format_string_limit, nominal) {
     auto allocator = rcutils_get_default_allocator();
     char * formatted = rcutils_format_string_limit(allocator, 3, "%s", "test");
     EXPECT_STREQ("te", formatted);
-    if (formatted) {
-      allocator.deallocate(formatted, allocator.state);
-    }
-  }
-
-  {
-    auto allocator = rcutils_get_default_allocator();
-    char * formatted = rcutils_format_string_limit(allocator, 3, "string is too long %s", "test");
-    EXPECT_STREQ("st", formatted);
     if (formatted) {
       allocator.deallocate(formatted, allocator.state);
     }

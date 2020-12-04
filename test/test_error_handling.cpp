@@ -14,10 +14,10 @@
 
 #include <string>
 
-#include "./allocator_testing_utils.h"
 #include "gmock/gmock.h"
 
 #include "osrf_testing_tools_cpp/memory_tools/gtest_quickstart.hpp"
+
 #include "rcutils/error_handling.h"
 
 int
@@ -39,12 +39,6 @@ count_substrings(const std::string & str, const std::string & substr)
 
 TEST(test_error_handling, nominal) {
   osrf_testing_tools_cpp::memory_tools::ScopedQuickstartGtest scoped_quickstart_gtest(true);
-
-  auto failing_allocator = get_failing_allocator();
-  failing_allocator.allocate = NULL;
-  EXPECT_EQ(
-    RCUTILS_RET_INVALID_ARGUMENT,
-    rcutils_initialize_error_handling_thread_local_storage(failing_allocator));
 
   // Note that without the thread-local initialization function below, you might get errors like:
   /**
@@ -88,13 +82,11 @@ Stack trace (most recent call last):
   rcutils_ret_t ret =
     rcutils_initialize_error_handling_thread_local_storage(rcutils_get_default_allocator());
   ASSERT_EQ(ret, RCUTILS_RET_OK);
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
   const char * test_message = "test message";
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     RCUTILS_SET_ERROR_MSG(test_message);
   });
   using ::testing::StartsWith;
@@ -102,8 +94,7 @@ Stack trace (most recent call last):
   rcutils_error_string_t error_string = rcutils_get_error_string();
   EXPECT_NO_MEMORY_OPERATIONS_END();
   ASSERT_THAT(error_string.str, StartsWith(test_message));
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
 }
@@ -113,14 +104,12 @@ TEST(test_error_handling, reset) {
   rcutils_ret_t ret =
     rcutils_initialize_error_handling_thread_local_storage(rcutils_get_default_allocator());
   ASSERT_EQ(ret, RCUTILS_RET_OK);
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
   {
     const char * test_message = "test message";
-    EXPECT_NO_MEMORY_OPERATIONS(
-    {
+    EXPECT_NO_MEMORY_OPERATIONS({
       RCUTILS_SET_ERROR_MSG(test_message);
     });
     using ::testing::StartsWith;
@@ -132,8 +121,7 @@ TEST(test_error_handling, reset) {
   rcutils_reset_error();
   {
     const char * test_message = "different message";
-    EXPECT_NO_MEMORY_OPERATIONS(
-    {
+    EXPECT_NO_MEMORY_OPERATIONS({
       RCUTILS_SET_ERROR_MSG(test_message);
     });
     using ::testing::StartsWith;
@@ -142,8 +130,7 @@ TEST(test_error_handling, reset) {
     EXPECT_NO_MEMORY_OPERATIONS_END();
     ASSERT_THAT(error_string.str, StartsWith(test_message));
   }
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
   {
@@ -158,8 +145,7 @@ TEST(test_error_handling, reset) {
     EXPECT_NO_MEMORY_OPERATIONS_END();
     ASSERT_STREQ("error not set", error_string.str);
   }
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
 }
@@ -169,13 +155,11 @@ TEST(test_error_handling, invalid_arguments) {
   rcutils_ret_t ret =
     rcutils_initialize_error_handling_thread_local_storage(rcutils_get_default_allocator());
   ASSERT_EQ(ret, RCUTILS_RET_OK);
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
   printf("The following error from within error_handling.c is expected.\n");
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     RCUTILS_SET_ERROR_MSG(NULL);
   });
   EXPECT_FALSE(rcutils_error_is_set());
@@ -187,8 +171,7 @@ TEST(test_error_handling, invalid_arguments) {
   }
 
   printf("The following error from within error_handling.c is expected.\n");
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_set_error_state("valid error message", NULL, 42);
   });
   EXPECT_FALSE(rcutils_error_is_set());
@@ -199,8 +182,7 @@ TEST(test_error_handling, invalid_arguments) {
     ASSERT_STREQ("error not set", error_string.str);
   }
 
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
 }
@@ -210,8 +192,7 @@ TEST(test_error_handling, empty) {
   rcutils_ret_t ret =
     rcutils_initialize_error_handling_thread_local_storage(rcutils_get_default_allocator());
   ASSERT_EQ(ret, RCUTILS_RET_OK);
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
   {
@@ -226,8 +207,7 @@ TEST(test_error_handling, empty) {
     EXPECT_NO_MEMORY_OPERATIONS_END();
     ASSERT_STREQ("error not set", error_string.str);
   }
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
 }
@@ -237,13 +217,11 @@ TEST(test_error_handling, recursive) {
   rcutils_ret_t ret =
     rcutils_initialize_error_handling_thread_local_storage(rcutils_get_default_allocator());
   ASSERT_EQ(ret, RCUTILS_RET_OK);
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
   const char * test_message = "test message";
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     RCUTILS_SET_ERROR_MSG(test_message);
   });
   using ::testing::HasSubstr;
@@ -253,8 +231,7 @@ TEST(test_error_handling, recursive) {
     EXPECT_NO_MEMORY_OPERATIONS_END();
     ASSERT_THAT(error_string.str, HasSubstr(", at"));
   }
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     RCUTILS_SET_ERROR_MSG(rcutils_get_error_string().str);
   });
   std::string err_msg;
@@ -275,13 +252,11 @@ TEST(test_error_handling, copy) {
   rcutils_ret_t ret =
     rcutils_initialize_error_handling_thread_local_storage(rcutils_get_default_allocator());
   ASSERT_EQ(ret, RCUTILS_RET_OK);
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
   const char * test_message = "test message";
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     RCUTILS_SET_ERROR_MSG(test_message);
   });
   using ::testing::HasSubstr;
@@ -301,8 +276,7 @@ TEST(test_error_handling, copy) {
   EXPECT_NO_MEMORY_OPERATIONS_END();
   ASSERT_NE(nullptr, error_state);
   ASSERT_STREQ(test_message, error_state->message);
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
 }
@@ -312,13 +286,11 @@ TEST(test_error_handling, overwrite) {
   rcutils_ret_t ret =
     rcutils_initialize_error_handling_thread_local_storage(rcutils_get_default_allocator());
   ASSERT_EQ(ret, RCUTILS_RET_OK);
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
   const char * test_message = "this is expected to cause a warning from error_handling.c";
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     RCUTILS_SET_ERROR_MSG(test_message);
   });
   using ::testing::HasSubstr;
@@ -330,13 +302,11 @@ TEST(test_error_handling, overwrite) {
   // force an overwrite error
   const char * test_message2 = "and this too";
   printf("The following warning from error_handling.c is expected...\n");
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     RCUTILS_SET_ERROR_MSG(test_message2);
   });
 
-  EXPECT_NO_MEMORY_OPERATIONS(
-  {
+  EXPECT_NO_MEMORY_OPERATIONS({
     rcutils_reset_error();
   });
 }

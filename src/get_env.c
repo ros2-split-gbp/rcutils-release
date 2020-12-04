@@ -23,27 +23,35 @@ extern "C"
 #include "rcutils/get_env.h"
 
 #ifdef _WIN32
-#pragma warning(disable : 4996)
-#endif
+# define WINDOWS_ENV_BUFFER_SIZE 2048
+static char __env_buffer[WINDOWS_ENV_BUFFER_SIZE];
+#endif  // _WIN32
+
 
 const char *
 rcutils_get_env(const char * env_name, const char ** env_value)
 {
-  RCUTILS_CAN_RETURN_WITH_ERROR_OF("some string error");
-
   if (NULL == env_name) {
     return "argument env_name is null";
   }
   if (NULL == env_value) {
     return "argument env_value is null";
   }
-
-  // TODO(Suyash458): getenv is deprecated on Windows; consider using getenv_s instead
+  *env_value = NULL;
+#ifdef _WIN32
+  size_t required_size;
+  errno_t ret = getenv_s(&required_size, __env_buffer, sizeof(__env_buffer), env_name);
+  if (ret != 0) {
+    return "unable to read environment variable";
+  }
+  __env_buffer[WINDOWS_ENV_BUFFER_SIZE - 1] = '\0';
+  *env_value = __env_buffer;
+#else
   *env_value = getenv(env_name);
-
   if (NULL == *env_value) {
     *env_value = "";
   }
+#endif  // _WIN32
   return NULL;
 }
 
