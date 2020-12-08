@@ -22,7 +22,18 @@ extern "C"
 #include <string.h>
 
 #if defined _WIN32 || defined __CYGWIN__
+// When building with MSVC 19.28.29333.0 on Windows 10 (as of 2020-11-11),
+// there appears to be a problem with winbase.h (which is included by
+// Windows.h).  In particular, warnings of the form:
+//
+// warning C5105: macro expansion producing 'defined' has undefined behavior
+//
+// See https://developercommunity.visualstudio.com/content/problem/695656/wdk-and-sdk-are-not-compatible-with-experimentalpr.html
+// for more information.  For now disable that warning when including windows.h
+#pragma warning(push)
+#pragma warning(disable : 5105)
 #include <Windows.h>
+#pragma warning(pop)
 #else
 #include <libgen.h>
 #include <unistd.h>
@@ -48,7 +59,7 @@ char * rcutils_get_executable_name(rcutils_allocator_t allocator)
 
 #if defined __APPLE__ || defined __FreeBSD__ || (defined __ANDROID__ && __ANDROID_API__ >= 21)
   const char * appname = getprogname();
-#elif defined __GNUC__
+#elif defined __GNUC__ && !defined(__QNXNTO__)
   const char * appname = program_invocation_name;
 #elif defined _WIN32 || defined __CYGWIN__
   char appname[MAX_PATH];
@@ -56,6 +67,9 @@ char * rcutils_get_executable_name(rcutils_allocator_t allocator)
   if (size == 0) {
     return NULL;
   }
+#elif defined __QNXNTO__
+  extern char * __progname;
+  const char * appname = __progname;
 #else
 #error "Unsupported OS"
 #endif
