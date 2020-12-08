@@ -17,11 +17,13 @@
 #include <string>
 
 #include "./allocator_testing_utils.h"
+#include "./time_bomb_allocator_testing_utils.h"
 #include "rcutils/allocator.h"
 #include "rcutils/error_handling.h"
 #include "rcutils/types/array_list.h"
 
 auto failing_allocator = get_failing_allocator();
+auto time_bomb_allocator = get_time_bomb_allocator();
 
 class ArrayListTest : public ::testing::Test
 {
@@ -78,6 +80,20 @@ TEST_F(ArrayListTest, init_data_size_zero_fails) {
 TEST_F(ArrayListTest, init_null_allocator_fails) {
   rcutils_ret_t ret = rcutils_array_list_init(&list, 2, sizeof(uint32_t), NULL);
   EXPECT_EQ(RCUTILS_RET_INVALID_ARGUMENT, ret) << rcutils_get_error_string().str;
+}
+
+TEST_F(ArrayListTest, fail_allocate_impl) {
+  rcutils_allocator_t time_bomb_allocator = get_time_bomb_allocator();
+  set_time_bomb_allocator_malloc_count(time_bomb_allocator, 0);
+  rcutils_ret_t ret = rcutils_array_list_init(&list, 2, sizeof(uint32_t), &time_bomb_allocator);
+  EXPECT_EQ(RCUTILS_RET_BAD_ALLOC, ret) << rcutils_get_error_string().str;
+}
+
+TEST_F(ArrayListTest, fail_allocate_impl_list) {
+  rcutils_allocator_t time_bomb_allocator = get_time_bomb_allocator();
+  set_time_bomb_allocator_malloc_count(time_bomb_allocator, 1);
+  rcutils_ret_t ret = rcutils_array_list_init(&list, 2, sizeof(uint32_t), &time_bomb_allocator);
+  EXPECT_EQ(RCUTILS_RET_BAD_ALLOC, ret) << rcutils_get_error_string().str;
 }
 
 TEST_F(ArrayListTest, init_success) {
@@ -356,4 +372,31 @@ TEST_F(ArrayListPreInitTest, remove_preserves_data_around_it) {
   ret = rcutils_array_list_get(&list, 2, &ret_data);
   EXPECT_EQ(RCUTILS_RET_OK, ret) << rcutils_get_error_string().str;
   EXPECT_EQ((uint32_t)6, ret_data) << rcutils_get_error_string().str;
+}
+
+TEST_F(ArrayListPreInitTest, init_list_twice_fails) {
+  rcutils_ret_t ret = rcutils_array_list_init(&list, 2, sizeof(uint32_t), &allocator);
+  EXPECT_EQ(RCUTILS_RET_INVALID_ARGUMENT, ret) << rcutils_get_error_string().str;
+}
+
+typedef struct allocator_state
+{
+  bool is_failing;
+} allocator_state;
+
+TEST_F(ArrayListTest, list_add_bad_allocator_fails) {
+  allocator_state state;
+  uint32_t data = 22;
+  state.is_failing = false;
+  failing_allocator.state = &state;
+
+  EXPECT_EQ(
+    RCUTILS_RET_OK, rcutils_array_list_init(&list, 1, sizeof(uint32_t), &failing_allocator));
+  EXPECT_EQ(RCUTILS_RET_OK, rcutils_array_list_add(&list, &data));
+
+  state.is_failing = true;
+  EXPECT_EQ(RCUTILS_RET_BAD_ALLOC, rcutils_array_list_add(&list, &data));
+
+  state.is_failing = false;
+  EXPECT_EQ(RCUTILS_RET_OK, rcutils_array_list_fini(&list));
 }

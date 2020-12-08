@@ -46,7 +46,7 @@ rcutils_split(
 
   size_t string_size = strlen(str);
 
-  // does it start with a delmiter?
+  // does it start with a delimiter?
   size_t lhs_offset = 0;
   if (str[0] == delimiter) {
     lhs_offset = 1;
@@ -75,8 +75,8 @@ rcutils_split(
   size_t rhs = 0 + lhs_offset;
   for (; rhs < string_size - rhs_offset; ++rhs) {
     if (str[rhs] == delimiter) {
-      // in case we have two consequetive delimiters
-      // we ignore these and delimish the size of the array
+      // in case we have two consecutive delimiters
+      // we ignore these and diminish the size of the array
       if (rhs - lhs < 1) {
         --string_array->size;
         string_array->data[string_array->size] = NULL;
@@ -100,7 +100,6 @@ rcutils_split(
   // take care of trailing token
   if (rhs - lhs < 1) {
     --string_array->size;
-    allocator.deallocate(string_array->data[string_array->size], allocator.state);
     string_array->data[string_array->size] = NULL;
   } else {
     string_array->data[token_counter] =
@@ -136,7 +135,7 @@ rcutils_split_last(
 
   size_t string_size = strlen(str);
 
-  // does it start with a delmiter?
+  // does it start with a delimiter?
   size_t lhs_offset = 0;
   if (str[0] == delimiter) {
     lhs_offset = 1;
@@ -189,7 +188,8 @@ rcutils_split_last(
       result_error = RCUTILS_RET_BAD_ALLOC;
       goto fail;
     }
-    snprintf(string_array->data[0], found_last + 1 - lhs_offset - inner_rhs_offset,
+    snprintf(
+      string_array->data[0], found_last + 1 - lhs_offset - inner_rhs_offset,
       "%s", str + lhs_offset);
 
     string_array->data[1] = allocator.allocate(
@@ -199,7 +199,8 @@ rcutils_split_last(
       result_error = RCUTILS_RET_BAD_ALLOC;
       goto fail;
     }
-    snprintf(string_array->data[1], string_size - found_last - rhs_offset, "%s",
+    snprintf(
+      string_array->data[1], string_size - found_last - rhs_offset, "%s",
       str + found_last + 1);
   }
 
