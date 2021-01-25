@@ -22,6 +22,7 @@ extern "C"
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "rcutils/allocator.h"
 #include "rcutils/macros.h"
@@ -144,6 +145,24 @@ rcutils_to_native_path(
   const char * path,
   rcutils_allocator_t allocator);
 
+/// Expand user directory in path.
+/**
+ * This function expands an initial '~' to the current user's home directory.
+ * The home directory is fetched using `rcutils_get_home_dir()`.
+ * This function returns a newly allocated string on success.
+ * It is up to the caller to release the memory once it is done with it by
+ * calling `deallocate` on the same allocator passed here.
+ *
+ * \param[in] path A null-terminated C string representing a path.
+ * \param[in] allocator
+ * \return path with expanded home directory on success, or
+ * \return `NULL` on invalid arguments, or
+ * \return `NULL` on failure.
+ */
+RCUTILS_PUBLIC
+char *
+rcutils_expand_user(const char * path, rcutils_allocator_t allocator);
+
 /// Create the specified directory.
 /**
  * This function creates an absolutely-specified directory.
@@ -167,25 +186,110 @@ bool
 rcutils_mkdir(const char * abs_path);
 
 /// Calculate the size of the specified directory.
-/*
+/**
  * Calculates the size of a directory by summarizing the file size of all files.
  * \note This operation is not recursive.
  * \param[in] directory_path The directory path to calculate the size of.
+ * \param[out] size The size of the directory in bytes on success.
  * \param[in] allocator Allocator being used for internal file path composition.
- * \return The size of the directory in bytes.
+ * \return `RCUTILS_RET_OK` if successful, or
+ * \return `RCUTILS_RET_INVALID_ARGUMENT` for invalid arguments, or
+ * \return `RCUTILS_RET_BAD_ALLOC` if memory allocation fails
+ * \return `RCUTILS_RET_ERROR` if other error occurs
  */
 RCUTILS_PUBLIC
-size_t
-rcutils_calculate_directory_size(const char * directory_path, rcutils_allocator_t allocator);
+rcutils_ret_t
+rcutils_calculate_directory_size(
+  const char * directory_path,
+  uint64_t * size,
+  rcutils_allocator_t allocator);
+
+/// Calculate the size of the specified directory with recursion.
+/**
+ * Calculates the size of a directory and subdirectory by summarizing the file size of all files.
+ * If necessary, you can specify the maximum directory depth to recurse into.
+ * Depth definition as below.
+ * \code
+ * directory_path  <= depth 1
+ *    |- subdirectory <= depth 2
+ *            |- subdirectory <= depth 3
+ *                    ...
+ * \endcode
+ *
+ * \note This API does not follow symlinks to files or directories.
+ * \param[in] directory_path The directory path to calculate the size of.
+ * \param[in] max_depth The maximum depth of subdirectory. 0 means no limitation.
+ * \param[out] size The size of the directory in bytes on success.
+ * \param[in] allocator Allocator being used for internal file path composition.
+ * \return `RCUTILS_RET_OK` if successful, or
+ * \return `RCUTILS_RET_INVALID_ARGUMENT` for invalid arguments, or
+ * \return `RCUTILS_RET_BAD_ALLOC` if memory allocation fails
+ * \return `RCUTILS_RET_ERROR` if other error occurs
+ */
+RCUTILS_PUBLIC
+rcutils_ret_t
+rcutils_calculate_directory_size_with_recursion(
+  const char * directory_path,
+  const size_t max_depth,
+  uint64_t * size,
+  rcutils_allocator_t allocator);
 
 /// Calculate the size of the specifed file.
-/*
+/**
  * \param[in] file_path The path of the file to obtain its size of.
  * \return The size of the file in bytes.
  */
 RCUTILS_PUBLIC
 size_t
 rcutils_get_file_size(const char * file_path);
+
+/// An iterator used for enumerating directory contents
+typedef struct rcutils_dir_iter_t
+{
+  /// The name of the enumerated file or directory
+  const char * entry_name;
+  /// The allocator used internally by iteration functions
+  rcutils_allocator_t allocator;
+  /// The platform-specific iteration state
+  void * state;
+} rcutils_dir_iter_t;
+
+/// Begin iterating over the contents of the specified directory.
+/*
+ * This function is used to list the files and directories that are contained in
+ * a specified directory. The structure returned by it must be deallocated using
+ * ::rcutils_dir_iter_end when the iteration is completed. The name of the
+ * enumerated entry is stored in the `entry_name` member of the returned object,
+ * and the first entry is already populated upon completion of this function. To
+ * populate the entry with the name of the next entry, use the
+ * ::rcutils_dir_iter_next function. Note that the "." and ".." entries are
+ * typically among the entries enumerated.
+ * \param[in] directory_path The directory path to iterate over the contents of.
+ * \param[in] allocator Allocator used to create the returned structure.
+ * \return An iterator object used to continue iterating directory contents
+ * \return NULL if an error occurred
+ */
+RCUTILS_PUBLIC
+rcutils_dir_iter_t *
+rcutils_dir_iter_start(const char * directory_path, const rcutils_allocator_t allocator);
+
+/// Continue iterating over the contents of a directory.
+/*
+ * \param[in] iter An iterator created by ::rcutils_dir_iter_start.
+ * \return `True` if another entry was found
+ * \return `False` if there are no more entries in the directory
+ */
+RCUTILS_PUBLIC
+bool
+rcutils_dir_iter_next(rcutils_dir_iter_t * iter);
+
+/// Finish iterating over the contents of a directory.
+/*
+ * \param[in] iter An iterator created by ::rcutils_dir_iter_start.
+ */
+RCUTILS_PUBLIC
+void
+rcutils_dir_iter_end(rcutils_dir_iter_t * iter);
 
 #ifdef __cplusplus
 }
