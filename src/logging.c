@@ -54,9 +54,6 @@ extern "C"
 #include "rcutils/time.h"
 #include "rcutils/types/string_map.h"
 
-
-#define RCUTILS_LOGGING_SEPARATOR_CHAR '.'
-
 #define RCUTILS_LOGGING_MAX_OUTPUT_FORMAT_LEN (2048)
 
 #if defined(_WIN32)
@@ -174,8 +171,9 @@ rcutils_ret_t rcutils_logging_initialize_with_allocator(rcutils_allocator_t allo
     const char * ret_str = rcutils_get_env("RCUTILS_CONSOLE_STDOUT_LINE_BUFFERED", &line_buffered);
     if (NULL == ret_str) {
       if (strcmp(line_buffered, "") != 0) {
-        RCUTILS_SAFE_FWRITE_TO_STDERR(
-          "RCUTILS_CONSOLE_STDOUT_LINE_BUFFERED is now ignored. "
+        fprintf(
+          stderr,
+          "RCUTILS_CONSOLE_STDOUT_LINE_BUFFERED is now ignored.  "
           "Please set RCUTILS_LOGGING_USE_STDOUT and RCUTILS_LOGGING_BUFFERED_STREAM "
           "to control the stream and the buffering of log messages.\n");
       }
@@ -356,35 +354,39 @@ rcutils_logging_severity_level_from_string(
 
 rcutils_logging_output_handler_t rcutils_logging_get_output_handler(void)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   return g_rcutils_logging_output_handler;
 }
 
 void rcutils_logging_set_output_handler(rcutils_logging_output_handler_t function)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  // *INDENT-OFF* (prevent uncrustify from making unnecessary indents here)
+  RCUTILS_LOGGING_AUTOINIT
   g_rcutils_logging_output_handler = function;
+  // *INDENT-ON*
 }
 
 int rcutils_logging_get_default_logger_level(void)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   return g_rcutils_logging_default_logger_level;
 }
 
 void rcutils_logging_set_default_logger_level(int level)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  // *INDENT-OFF* (prevent uncrustify from making unnecessary indents here)
+  RCUTILS_LOGGING_AUTOINIT
   if (RCUTILS_LOG_SEVERITY_UNSET == level) {
     // Restore the default
     level = RCUTILS_DEFAULT_LOGGER_DEFAULT_LEVEL;
   }
   g_rcutils_logging_default_logger_level = level;
+  // *INDENT-ON*
 }
 
 int rcutils_logging_get_logger_level(const char * name)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   if (NULL == name) {
     return -1;
   }
@@ -393,7 +395,7 @@ int rcutils_logging_get_logger_level(const char * name)
 
 int rcutils_logging_get_logger_leveln(const char * name, size_t name_length)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   if (NULL == name) {
     return -1;
   }
@@ -422,7 +424,8 @@ int rcutils_logging_get_logger_leveln(const char * name, size_t name_length)
   rcutils_ret_t ret = rcutils_logging_severity_level_from_string(
     severity_string, g_rcutils_logging_allocator, &severity);
   if (RCUTILS_RET_OK != ret) {
-    RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
+    fprintf(
+      stderr,
       "Logger has an invalid severity level: %s\n", severity_string);
     return -1;
   }
@@ -431,7 +434,7 @@ int rcutils_logging_get_logger_leveln(const char * name, size_t name_length)
 
 int rcutils_logging_get_logger_effective_level(const char * name)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   if (NULL == name) {
     return -1;
   }
@@ -439,7 +442,8 @@ int rcutils_logging_get_logger_effective_level(const char * name)
   while (true) {
     int severity = rcutils_logging_get_logger_leveln(name, substring_length);
     if (-1 == severity) {
-      RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
+      fprintf(
+        stderr,
         "Error getting effective level of logger '%s'\n", name);
       return -1;
     }
@@ -463,7 +467,7 @@ int rcutils_logging_get_logger_effective_level(const char * name)
 
 rcutils_ret_t rcutils_logging_set_logger_level(const char * name, int level)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   if (NULL == name) {
     RCUTILS_SET_ERROR_MSG("Invalid logger name");
     return RCUTILS_RET_INVALID_ARGUMENT;
@@ -504,14 +508,14 @@ rcutils_ret_t rcutils_logging_set_logger_level(const char * name, int level)
 
 bool rcutils_logging_logger_is_enabled_for(const char * name, int severity)
 {
-  RCUTILS_LOGGING_AUTOINIT;
+  RCUTILS_LOGGING_AUTOINIT
   int logger_level = g_rcutils_logging_default_logger_level;
   if (name) {
     logger_level = rcutils_logging_get_logger_effective_level(name);
     if (-1 == logger_level) {
-      RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
-        "Error determining if logger '%s' is enabled for severity '%d'\n",
-        name, severity);
+      fprintf(
+        stderr,
+        "Error determining if logger '%s' is enabled for severity '%d'\n", name, severity);
       return false;
     }
   }
@@ -625,8 +629,7 @@ const char * expand_line_number(
   int written = rcutils_snprintf(
     line_number_expansion, sizeof(line_number_expansion), "%zu", location->line_number);
   if (written < 0) {
-    RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
-      "failed to format line number: '%zu'\n", location->line_number);
+    fprintf(stderr, "failed to format line number: '%zu'\n", location->line_number);
     return NULL;
   }
 
@@ -821,8 +824,7 @@ rcutils_ret_t rcutils_logging_format_message(
         color = COLOR_RED; \
         break; \
       default: \
-        RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING( \
-          "unknown severity level: %d\n", severity); \
+        fprintf(stderr, "unknown severity level: %d\n", severity); \
         status = RCUTILS_RET_INVALID_ARGUMENT; \
     } \
   }
@@ -832,8 +834,7 @@ rcutils_ret_t rcutils_logging_format_message(
     if (RCUTILS_RET_OK == status) { \
       if (!SetConsoleTextAttribute(handle, color)) { \
         DWORD error = GetLastError(); \
-        RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING( \
-          "SetConsoleTextAttribute failed with error code %lu.\n", error); \
+        fprintf(stderr, "SetConsoleTextAttribute failed with error code %lu.\n", error); \
         status = RCUTILS_RET_ERROR; \
       } \
     } \
@@ -848,8 +849,7 @@ rcutils_ret_t rcutils_logging_format_message(
       } \
       if (INVALID_HANDLE_VALUE == handle) { \
         DWORD error = GetLastError(); \
-        RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING( \
-          "GetStdHandle failed with error code %lu.\n", error); \
+        fprintf(stderr, "GetStdHandle failed with error code %lu.\n", error); \
         status = RCUTILS_RET_ERROR; \
       } \
     } \
@@ -877,8 +877,8 @@ rcutils_ret_t rcutils_logging_format_message(
     if (RCUTILS_RET_OK == status) { \
       status = rcutils_char_array_strncat(&output_array, color, strlen(color)); \
       if (RCUTILS_RET_OK != status) { \
-        RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING( \
-          "Error: rcutils_char_array_strncat failed with: %d\n", \
+        fprintf( \
+          stderr, "Error: rcutils_char_array_strncat failed with: %d\n", \
           status); \
       } \
     } \
@@ -907,8 +907,9 @@ void rcutils_logging_console_output_handler(
   bool is_colorized = false;
 
   if (!g_rcutils_logging_initialized) {
-    RCUTILS_SAFE_FWRITE_TO_STDERR(
-      "logging system isn't initialized: "
+    fprintf(
+      stderr,
+      "logging system isn't initialized: " \
       "call to rcutils_logging_console_output_handler failed.\n");
     return;
   }
@@ -920,8 +921,7 @@ void rcutils_logging_console_output_handler(
     case RCUTILS_LOG_SEVERITY_FATAL:
       break;
     default:
-      RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
-        "unknown severity level: %d\n", severity);
+      fprintf(stderr, "unknown severity level: %d\n", severity);
       return;
   }
 
@@ -954,8 +954,9 @@ void rcutils_logging_console_output_handler(
     va_copy(args_clone, *args);
     status = rcutils_char_array_vsprintf(&msg_array, format, args_clone);
     if (RCUTILS_RET_OK != status) {
-      RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
-        "Error: rcutils_char_array_vsprintf failed with: %d\n", status);
+      fprintf(
+        stderr, "Error: rcutils_char_array_vsprintf failed with: %d\n",
+        status);
     }
     va_end(args_clone);
   }
@@ -964,8 +965,9 @@ void rcutils_logging_console_output_handler(
     status = rcutils_logging_format_message(
       location, severity, name, timestamp, msg_array.buffer, &output_array);
     if (RCUTILS_RET_OK != status) {
-      RCUTILS_SAFE_FWRITE_TO_STDERR_WITH_FORMAT_STRING(
-        "Error: rcutils_logging_format_message failed with: %d\n", status);
+      fprintf(
+        stderr, "Error: rcutils_logging_format_message failed with: %d\n",
+        status);
     }
   }
 
@@ -982,11 +984,11 @@ void rcutils_logging_console_output_handler(
 
   status = rcutils_char_array_fini(&msg_array);
   if (RCUTILS_RET_OK != status) {
-    RCUTILS_SAFE_FWRITE_TO_STDERR("Failed to fini array.\n");
+    fprintf(stderr, "Failed to fini array.\n");
   }
   status = rcutils_char_array_fini(&output_array);
   if (RCUTILS_RET_OK != status) {
-    RCUTILS_SAFE_FWRITE_TO_STDERR("Failed to fini array.\n");
+    fprintf(stderr, "Failed to fini array.\n");
   }
 }
 
