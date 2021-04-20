@@ -1,0 +1,12 @@
+Source: ros-galactic-rcutils
+Section: misc
+Priority: optional
+Maintainer: Chris Lalancette <clalancette@openrobotics.org>
+Build-Depends: debhelper (>= 9.0.0), libatomic1, python3-empy, ros-galactic-ament-cmake-gmock, ros-galactic-ament-cmake-gtest, ros-galactic-ament-cmake-pytest, ros-galactic-ament-cmake-ros, ros-galactic-ament-lint-auto, ros-galactic-ament-lint-common, ros-galactic-launch, ros-galactic-launch-testing, ros-galactic-launch-testing-ament-cmake, ros-galactic-mimick-vendor, ros-galactic-osrf-testing-tools-cpp, ros-galactic-performance-test-fixture, ros-galactic-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-galactic-rcutils
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libatomic1, ros-galactic-ros-workspace
+Description: Package containing various utility types and functions for C
