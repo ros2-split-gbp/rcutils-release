@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.12)
 
 project(rcutils)
 
@@ -15,6 +15,8 @@ include(CheckLibraryExists)
 
 find_package(ament_cmake_python REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 ament_python_install_package(${PROJECT_NAME})
 
@@ -56,7 +58,6 @@ set(rcutils_sources
   src/filesystem.c
   src/find.c
   src/format_string.c
-  src/get_env.c
   src/hash_map.c
   src/logging.c
   src/process.c
@@ -103,7 +104,7 @@ em.invoke( \
 string(REPLACE ";" "$<SEMICOLON>" python_code "${python_code}")
 add_custom_command(OUTPUT include/rcutils/logging_macros.h
   COMMAND ${CMAKE_COMMAND} -E make_directory "include/rcutils"
-  COMMAND ${PYTHON_EXECUTABLE} ARGS -c "${python_code}"
+  COMMAND Python3::Interpreter ARGS -c "${python_code}"
   DEPENDS
     "${CMAKE_CURRENT_BINARY_DIR}/logging_macros.h.em.watch"
     "${CMAKE_CURRENT_BINARY_DIR}/logging.py.watch"
@@ -311,17 +312,10 @@ if(BUILD_TESTING)
     target_link_libraries(test_string_array ${PROJECT_NAME})
   endif()
 
-  rcutils_custom_add_gtest(test_get_env test/test_get_env.cpp
+  rcutils_custom_add_gtest(test_env test/test_env.cpp
     ENV
       EMPTY_TEST=
       NORMAL_TEST=foo
-    APPEND_LIBRARY_DIRS "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
-  )
-  if(TARGET test_get_env)
-    target_link_libraries(test_get_env ${PROJECT_NAME})
-  endif()
-
-  rcutils_custom_add_gtest(test_env test/test_env.cpp
     APPEND_LIBRARY_DIRS "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
   )
   if(TARGET test_env)
