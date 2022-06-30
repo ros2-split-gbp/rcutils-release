@@ -32,7 +32,7 @@ extern "C"
     return RCUTILS_RET_INVALID_ARGUMENT; \
   }
 
-typedef struct rcutils_array_list_impl_s
+typedef struct rcutils_array_list_impl_t
 {
   size_t size;
   size_t capacity;
