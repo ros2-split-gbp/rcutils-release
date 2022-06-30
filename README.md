@@ -1,3 +1,26 @@
+## rcutils (galactic) - 4.0.3-1
+
+The packages in the `rcutils` repository were released into the `galactic` distro by running `/usr/bin/bloom-release --track galactic --rosdistro galactic rcutils` on `Thu, 30 Jun 2022 17:57:06 -0000`
+
+The `rcutils` package was released.
+
+Version of package(s) in repository `rcutils`:
+
+- upstream repository: https://github.com/ros2/rcutils.git
+- release repository: https://github.com/ros2-gbp/rcutils-release.git
+- rosdistro version: `4.0.2-2`
+- old version: `4.0.2-2`
+- new version: `4.0.3-1`
+
+Versions of tools used:
+
+- bloom version: `0.11.1`
+- catkin_pkg version: `0.5.2`
+- rosdep version: `0.22.1`
+- rosdistro version: `0.9.0`
+- vcstools version: `0.1.42`
+
+
 ## rcutils (rolling) - 5.2.0-1
 
 The packages in the `rcutils` repository were released into the `rolling` distro by running `/home/parallels/.local/bin/bloom-release -r rolling rcutils` on `Sat, 30 Apr 2022 00:55:25 -0000`
