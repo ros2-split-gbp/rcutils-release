@@ -28,10 +28,6 @@ if(UNIX AND NOT APPLE)
   endif()
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  # enables building a static library but later link it into a dynamic library
-  add_compile_options(-fPIC)
-endif()
 if(NOT WIN32)
   # About -Wno-sign-conversion: With Clang, -Wconversion implies -Wsign-conversion. There are a number of
   # implicit sign conversions in gtest.cc, see https://ci.ros2.org/job/ci_osx/9381/clang/.
@@ -65,7 +61,6 @@ set(rcutils_sources
   src/shared_library.c
   src/snprintf.c
   src/split.c
-  src/strcasecmp.c
   src/strdup.c
   src/strerror.c
   src/string_array.c
@@ -145,8 +140,6 @@ if(BUILD_TESTING)
   if(NOT WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
   endif()
-
-  find_package(performance_test_fixture REQUIRED)
 
   find_package(ament_cmake_gmock REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
@@ -374,77 +367,20 @@ if(BUILD_TESTING)
     target_link_libraries(test_repl_str ${PROJECT_NAME})
   endif()
 
-  macro(add_dummy_shared_library target)
-    add_library(${target} test/dummy_shared_library/dummy_shared_library.c)
+  set(append_library_dirs "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
+
+  ament_add_gtest(test_shared_library test/test_shared_library.cpp
+    APPEND_LIBRARY_DIRS "${append_library_dirs}"
+  )
+
+  if(TARGET test_shared_library)
+    add_library(dummy_shared_library test/dummy_shared_library/dummy_shared_library.c)
     if(WIN32)
       # Causes the visibility macros to use dllexport rather than dllimport
       # which is appropriate when building the dll but not consuming it.
-      target_compile_definitions(${target} PRIVATE "DUMMY_SHARED_LIBRARY_BUILDING_DLL")
+      target_compile_definitions(dummy_shared_library PRIVATE "DUMMY_SHARED_LIBRARY_BUILDING_DLL")
     endif()
-  endmacro()
-
-  ament_add_gtest(test_shared_library_in_run_paths test/test_shared_library.cpp)
-  if(TARGET test_shared_library_in_run_paths)
-    # Rely on CMake setting build tree RUNPATHs by default on Unix systems.
-    add_dummy_shared_library(dummy_shared_library_in_run_paths)
-    target_compile_definitions(test_shared_library_in_run_paths PRIVATE
-      "SHARED_LIBRARY_UNDER_TEST=dummy_shared_library_in_run_paths")
-    if(NOT WIN32 AND NOT APPLE)
-      # NOTE(hidmic): DT_RUNPATH entries are ignored by dlopen in Linux despite the fact
-      # documentation says otherwise, so here we fallback to DT_RPATH entries.
-      target_link_libraries(test_shared_library_in_run_paths "-Wl,--disable-new-dtags")
-    endif()
-    target_link_libraries(test_shared_library_in_run_paths ${PROJECT_NAME} mimick)
-  endif()
-
-  set(project_binary_dir "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
-  set(test_libraries_dir "$<TARGET_FILE_DIR:${PROJECT_NAME}>/test_libraries")
-  ament_add_gtest(test_shared_library_in_load_paths test/test_shared_library.cpp
-    APPEND_LIBRARY_DIRS ${project_binary_dir} ${test_libraries_dir}
-  )
-  if(TARGET test_shared_library_in_load_paths)
-    # Make sure CMake adds no RPATHs/RUNPATHs.
-    set_target_properties(test_shared_library_in_load_paths
-      PROPERTIES SKIP_BUILD_RPATH TRUE)
-    add_dummy_shared_library(dummy_shared_library_in_load_paths)
-    set_target_properties(dummy_shared_library_in_load_paths PROPERTIES
-      LIBRARY_OUTPUT_DIRECTORY ${test_libraries_dir})
-    target_compile_definitions(test_shared_library_in_load_paths PRIVATE
-      "SHARED_LIBRARY_UNDER_TEST=dummy_shared_library_in_load_paths")
-    target_link_libraries(test_shared_library_in_load_paths ${PROJECT_NAME} mimick)
-  endif()
-
-  include(CheckCXXCompilerFlag)
-  macro(check_cxx_linker_flag flag var)
-    set(CMAKE_REQUIRED_FLAGS ${flag})
-    check_cxx_compiler_flag("" ${var})
-    set(CMAKE_REQUIRED_FLAGS)
-  endmacro()
-
-  ament_add_gtest(test_shared_library_preloaded test/test_shared_library.cpp)
-  if(TARGET test_shared_library_in_load_paths)
-    add_dummy_shared_library(dummy_shared_library_preloaded)
-    set_target_properties(dummy_shared_library_preloaded PROPERTIES
-      LIBRARY_OUTPUT_DIRECTORY ${test_libraries_dir})
-    target_compile_definitions(test_shared_library_preloaded PRIVATE
-      "SHARED_LIBRARY_UNDER_TEST=dummy_shared_library_preloaded")
-    if(NOT WIN32)
-      # Force (apparently) unused libraries to be linked in.
-      check_cxx_linker_flag("-Wl,--no-as-needed" is_no_as_needed_supported)
-      if(NOT is_no_as_needed_supported)
-        check_cxx_linker_flag("-Wl,-all_load" is_all_load_supported)
-        if(NOT is_all_load_supported)
-          message(WARNING "No known linker flag to force library linkage")
-          message(WARNING "test_shared_library_preloaded might fail in runtime")
-        else()
-          target_link_libraries(test_shared_library_preloaded "-Wl,-all_load")
-        endif()
-      else()
-        target_link_libraries(test_shared_library_preloaded "-Wl,--no-as-needed")
-      endif()
-    endif()
-    target_link_libraries(test_shared_library_preloaded dummy_shared_library_preloaded)
-    target_link_libraries(test_shared_library_preloaded ${PROJECT_NAME} mimick)
+    target_link_libraries(test_shared_library ${PROJECT_NAME} mimick)
   endif()
 
   rcutils_custom_add_gtest(test_time
@@ -459,13 +395,6 @@ if(BUILD_TESTING)
   )
   if(TARGET test_snprintf)
     target_link_libraries(test_snprintf ${PROJECT_NAME})
-  endif()
-
-  rcutils_custom_add_gtest(test_strcasecmp
-    test/test_strcasecmp.cpp
-  )
-  if(TARGET test_strcasecmp)
-    target_link_libraries(test_strcasecmp ${PROJECT_NAME})
   endif()
 
   rcutils_custom_add_gtest(test_uint8_array
@@ -505,8 +434,7 @@ if(BUILD_TESTING)
 
   rcutils_custom_add_gtest(test_logging_custom_env test/test_logging_custom_env.cpp
     ENV
-      RCUTILS_CONSOLE_OUTPUT_FORMAT=
-        "[{severity}] [{time},{time_as_nanoseconds}] [{name},{function_name},{file_name}]: {line_number}-{message}"
+      RCUTILS_CONSOLE_OUTPUT_FORMAT="[{severity}] [{time},{time_as_nanoseconds}] [{name},{function_name},{file_name}]: {line_number}-{message}"
       RCUTILS_CONSOLE_STDOUT_LINE_BUFFERED=1
       RCUTILS_LOGGING_BUFFERED_STREAM=1
       RCUTILS_LOGGING_USE_STDOUT=1
@@ -518,8 +446,7 @@ if(BUILD_TESTING)
 
   # RCUTILS_LOGGING_MAX_OUTPUT_FORMAT_LEN is defined as 2048, truncation should occur
   foreach(i RANGE 0 100)
-    set(_output_format
-      "${_output_format} [{severity}] [{time},{time_as_nanoseconds}] [{name},{function_name},{file_name}]: {line_number}-{message}")
+    set(_output_format "${_output_format} [{severity}] [{time},{time_as_nanoseconds}] [{name},{function_name},{file_name}]: {line_number}-{message}")
   endforeach(i)
   rcutils_custom_add_gtest(test_logging_custom_env2 test/test_logging_custom_env.cpp
     ENV
@@ -574,19 +501,6 @@ if(BUILD_TESTING)
   rcutils_custom_add_gtest(test_macros
     test/test_macros.cpp
   )
-
-  add_performance_test(benchmark_logging test/benchmark/benchmark_logging.cpp)
-  if(TARGET benchmark_logging)
-    target_link_libraries(benchmark_logging ${PROJECT_NAME})
-    target_include_directories(benchmark_logging PUBLIC include)
-  endif()
-
-  add_performance_test(benchmark_err_handle test/benchmark/benchmark_error_handling.cpp)
-  if(TARGET benchmark_err_handle)
-    target_link_libraries(benchmark_err_handle ${PROJECT_NAME})
-    target_include_directories(benchmark_err_handle PUBLIC include)
-  endif()
-
   if(TARGET test_macros)
     target_link_libraries(test_macros ${PROJECT_NAME})
   endif()
