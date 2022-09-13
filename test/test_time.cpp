@@ -139,6 +139,7 @@ TEST_F(TestTimeFixture, test_rcutils_system_time_now) {
   // Compare to std::chrono::system_clock time (within a second).
   now = 0;
   ret = rcutils_system_time_now(&now);
+  ASSERT_EQ(ret, RCUTILS_RET_OK) << rcutils_get_error_string().str;
   {
     std::chrono::system_clock::time_point now_sc = std::chrono::system_clock::now();
     auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now_sc.time_since_epoch());
@@ -192,17 +193,7 @@ TEST_F(TestTimeFixture, test_rcutils_steady_time_now) {
 
 #if !defined(_WIN32)
 
-// For mocking purposes
-#if defined(__MACH__)
-#include <mach/clock.h>
-#include <mach/mach.h>
-#define clock_gettime clock_get_time
-#endif
-
-// Tests rcutils_system_time_now() and rcutils_steady_time_now() functions
-// when system clocks misbehave.
 TEST_F(TestTimeFixture, test_rcutils_with_bad_system_clocks) {
-#if !defined (__MACH__)  // as tv_sec is an unsigned integer there
   {
     auto mock = mocking_utils::patch(
       "lib:rcutils", clock_gettime,
@@ -221,7 +212,6 @@ TEST_F(TestTimeFixture, test_rcutils_with_bad_system_clocks) {
     EXPECT_EQ(RCUTILS_RET_ERROR, ret);
     rcutils_reset_error();
   }
-#endif
   {
     auto mock = mocking_utils::patch(
       "lib:rcutils", clock_gettime,
@@ -242,9 +232,6 @@ TEST_F(TestTimeFixture, test_rcutils_with_bad_system_clocks) {
   }
 }
 
-#if defined(__MACH__)
-#undef clock_gettime
-#endif
 #endif  // !defined(_WIN32)
 
 // Tests the rcutils_time_point_value_as_nanoseconds_string() function.

@@ -20,28 +20,41 @@ extern "C"
 #include <errno.h>
 #include <string.h>
 
-#include "rcutils/strerror.h"
+#include "rcutils/strcasecmp.h"
 
-void
-rcutils_strerror(char * buffer, size_t buffer_length)
+int
+rcutils_strcasecmp(
+  const char * s1,
+  const char * s2,
+  int * value)
 {
-#if defined(_WIN32)
-  strerror_s(buffer, buffer_length, errno);
-#elif defined(_GNU_SOURCE) && (!defined(ANDROID) || __ANDROID_API__ >= 23) && !defined(__QNXNTO__)
-  /* GNU-specific */
-  char * msg = strerror_r(errno, buffer, buffer_length);
-  if (msg != buffer) {
-    strncpy(buffer, msg, buffer_length);
-    buffer[buffer_length - 1] = '\0';
+  if (s1 == NULL || s2 == NULL || value == NULL) {
+    return -1;
   }
+#ifndef _WIN32
+  *value = strcasecmp(s1, s2);
 #else
-  /* XSI-compliant */
-  int error_status = strerror_r(errno, buffer, buffer_length);
-  if (error_status != 0) {
-    strncpy(buffer, "Failed to get error", buffer_length);
-    buffer[buffer_length - 1] = '\0';
-  }
+  *value = _stricmp(s1, s2);
 #endif
+  return 0;
+}
+
+int
+rcutils_strncasecmp(
+  const char * s1,
+  const char * s2,
+  size_t n,
+  int * value)
+{
+  if (s1 == NULL || s2 == NULL || value == NULL) {
+    return -1;
+  }
+#ifndef _WIN32
+  *value = strncasecmp(s1, s2, n);
+#else
+  *value = _strnicmp(s1, s2, n);
+#endif
+  return 0;
 }
 
 #ifdef __cplusplus
