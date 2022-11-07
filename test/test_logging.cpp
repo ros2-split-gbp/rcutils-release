@@ -14,21 +14,17 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "./allocator_testing_utils.h"
 #include "osrf_testing_tools_cpp/scope_exit.hpp"
 #include "rcutils/logging.h"
+#include "rcutils/strdup.h"
 
-#ifdef RMW_IMPLEMENTATION
-# define CLASSNAME_(NAME, SUFFIX) NAME ## __ ## SUFFIX
-# define CLASSNAME(NAME, SUFFIX) CLASSNAME_(NAME, SUFFIX)
-#else
-# define CLASSNAME(NAME, SUFFIX) NAME
-#endif
-
-TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logging_initialization) {
+TEST(TestLogging, test_logging_initialization) {
   EXPECT_FALSE(g_rcutils_logging_initialized);
   ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
   OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
@@ -51,7 +47,7 @@ TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logging_initialization) {
   // for the string map relating severity level values to string
   rcutils_allocator_t failing_allocator = get_failing_allocator();
   EXPECT_EQ(
-    RCUTILS_RET_STRING_MAP_INVALID, rcutils_logging_initialize_with_allocator(failing_allocator));
+    RCUTILS_RET_ERROR, rcutils_logging_initialize_with_allocator(failing_allocator));
 }
 
 size_t g_log_calls = 0;
@@ -66,7 +62,7 @@ struct LogEvent
 };
 LogEvent g_last_log_event;
 
-TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logging) {
+TEST(TestLogging, test_logging) {
   EXPECT_FALSE(g_rcutils_logging_initialized);
   ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
   OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
@@ -74,8 +70,8 @@ TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logging) {
     EXPECT_EQ(RCUTILS_RET_OK, rcutils_logging_shutdown());
   });
   EXPECT_TRUE(g_rcutils_logging_initialized);
-  g_rcutils_logging_default_logger_level = RCUTILS_LOG_SEVERITY_DEBUG;
-  EXPECT_EQ(RCUTILS_LOG_SEVERITY_DEBUG, g_rcutils_logging_default_logger_level);
+  rcutils_logging_set_default_logger_level(RCUTILS_LOG_SEVERITY_DEBUG);
+  EXPECT_EQ(RCUTILS_LOG_SEVERITY_DEBUG, rcutils_logging_get_default_logger_level());
 
   auto rcutils_logging_console_output_handler = [](
     const rcutils_log_location_t * location,
@@ -147,7 +143,7 @@ TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logging) {
   rcutils_logging_set_output_handler(original_function);
 }
 
-TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_log_severity) {
+TEST(TestLogging, test_log_severity) {
   rcutils_allocator_t allocator = rcutils_get_default_allocator();
   int severity;
   // check supported severities
@@ -187,7 +183,7 @@ TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_log_severity) {
     rcutils_logging_severity_level_from_string("Info", failing_allocator, &severity));
 }
 
-TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logger_severities) {
+TEST(TestLogging, test_logger_severities) {
   ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
   OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
   {
@@ -262,7 +258,7 @@ TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logger_severities) {
     rcutils_logging_set_logger_level("rcutils_test_loggers", 51));
 }
 
-TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logger_severity_hierarchy) {
+TEST(TestLogging, test_logger_severity_hierarchy) {
   ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
   OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
   {
@@ -327,4 +323,216 @@ TEST(CLASSNAME(TestLogging, RMW_IMPLEMENTATION), test_logger_severity_hierarchy)
   EXPECT_EQ(
     rcutils_test_logging_cpp_dot_severity,
     rcutils_logging_get_logger_effective_level("rcutils_test_logging_cpp.."));
+}
+
+TEST(TestLogging, test_logger_unset_change_ancestor) {
+  ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
+  OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
+  {
+    EXPECT_EQ(RCUTILS_RET_OK, rcutils_logging_shutdown());
+  });
+
+  // check resolving of effective thresholds in hierarchy of loggers
+  rcutils_logging_set_default_logger_level(RCUTILS_LOG_SEVERITY_INFO);
+
+  ASSERT_EQ(
+    RCUTILS_RET_OK,
+    rcutils_logging_set_logger_level(
+      "rcutils_test_logging_cpp", RCUTILS_LOG_SEVERITY_WARN));
+  ASSERT_EQ(
+    RCUTILS_RET_OK,
+    rcutils_logging_set_logger_level(
+      "rcutils_test_logging_cpp.x", RCUTILS_LOG_SEVERITY_UNSET));
+
+  EXPECT_EQ(
+    RCUTILS_LOG_SEVERITY_WARN,
+    rcutils_logging_get_logger_effective_level("rcutils_test_logging_cpp"));
+  EXPECT_EQ(
+    RCUTILS_LOG_SEVERITY_WARN,
+    rcutils_logging_get_logger_effective_level(
+      "rcutils_test_logging_cpp.x"));
+
+  // Now change the logger level of the ancestor.  This should cause the
+  // higher-level one to change as well (since it is unset).
+
+  ASSERT_EQ(
+    RCUTILS_RET_OK,
+    rcutils_logging_set_logger_level(
+      "rcutils_test_logging_cpp", RCUTILS_LOG_SEVERITY_DEBUG));
+
+  EXPECT_EQ(
+    RCUTILS_LOG_SEVERITY_DEBUG,
+    rcutils_logging_get_logger_effective_level("rcutils_test_logging_cpp"));
+  EXPECT_EQ(
+    RCUTILS_LOG_SEVERITY_DEBUG,
+    rcutils_logging_get_logger_effective_level(
+      "rcutils_test_logging_cpp.x"));
+}
+
+TEST(TestLogging, test_logger_set_change_ancestor) {
+  ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
+  OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
+  {
+    EXPECT_EQ(RCUTILS_RET_OK, rcutils_logging_shutdown());
+  });
+
+  // check resolving of effective thresholds in hierarchy of loggers
+  rcutils_logging_set_default_logger_level(RCUTILS_LOG_SEVERITY_INFO);
+
+  ASSERT_EQ(
+    RCUTILS_RET_OK,
+    rcutils_logging_set_logger_level(
+      "rcutils_test_logging_cpp", RCUTILS_LOG_SEVERITY_WARN));
+  ASSERT_EQ(
+    RCUTILS_RET_OK,
+    rcutils_logging_set_logger_level(
+      "rcutils_test_logging_cpp.x", RCUTILS_LOG_SEVERITY_FATAL));
+
+  EXPECT_EQ(
+    RCUTILS_LOG_SEVERITY_WARN,
+    rcutils_logging_get_logger_effective_level("rcutils_test_logging_cpp"));
+  EXPECT_EQ(
+    RCUTILS_LOG_SEVERITY_FATAL,
+    rcutils_logging_get_logger_effective_level(
+      "rcutils_test_logging_cpp.x"));
+
+  // Now change the logger level of the ancestor.  This should not change
+  // the level of the descendant, since it was set separately.
+
+  ASSERT_EQ(
+    RCUTILS_RET_OK,
+    rcutils_logging_set_logger_level(
+      "rcutils_test_logging_cpp", RCUTILS_LOG_SEVERITY_DEBUG));
+
+  EXPECT_EQ(
+    RCUTILS_LOG_SEVERITY_DEBUG,
+    rcutils_logging_get_logger_effective_level("rcutils_test_logging_cpp"));
+  EXPECT_EQ(
+    RCUTILS_LOG_SEVERITY_FATAL,
+    rcutils_logging_get_logger_effective_level(
+      "rcutils_test_logging_cpp.x"));
+}
+
+TEST(TestLogging, test_logger_allocated_names) {
+  // This tests whether we properly store and free the logger names inside
+  // of logging implementation.  It's best to run this under valgrind to
+  // see that there are no errors and no leaked memory.
+
+  ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
+  OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
+  {
+    EXPECT_EQ(RCUTILS_RET_OK, rcutils_logging_shutdown());
+  });
+
+  rcutils_logging_set_default_logger_level(RCUTILS_LOG_SEVERITY_INFO);
+
+  rcutils_allocator_t allocator = rcutils_get_default_allocator();
+
+  const char * allocated_name = rcutils_strdup("rcutils_test_loggers", allocator);
+
+  // check setting of acceptable severities
+  ASSERT_EQ(
+    RCUTILS_RET_OK,
+    rcutils_logging_set_logger_level(
+      allocated_name, RCUTILS_LOG_SEVERITY_WARN));
+
+  allocator.deallocate(const_cast<char *>(allocated_name), allocator.state);
+
+  ASSERT_EQ(
+    RCUTILS_LOG_SEVERITY_WARN,
+    rcutils_logging_get_logger_level("rcutils_test_loggers"));
+  rcutils_reset_error();
+}
+
+TEST(TestLogging, test_root_logger_after_nonexistent)
+{
+  // This tests whether the root logger remains unset after setting the logger name for a
+  // non-existent logger.
+
+  ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
+  OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
+  {
+    EXPECT_EQ(RCUTILS_RET_OK, rcutils_logging_shutdown());
+  });
+
+  int original_severity = rcutils_logging_get_logger_effective_level("my_internal_logger_name");
+
+  ASSERT_EQ(
+    RCUTILS_RET_OK,
+    rcutils_logging_set_logger_level(
+      "my_internal_logger_name", RCUTILS_LOG_SEVERITY_DEBUG));
+
+  EXPECT_EQ(
+    RCUTILS_LOG_SEVERITY_DEBUG,
+    rcutils_logging_get_logger_effective_level("my_internal_logger_name"));
+
+  ASSERT_EQ(
+    RCUTILS_RET_OK,
+    rcutils_logging_set_logger_level(
+      "my_internal_logger_name", original_severity));
+
+  int original_root_severity = rcutils_logging_get_logger_effective_level("");
+
+  ASSERT_EQ(
+    RCUTILS_RET_OK,
+    rcutils_logging_set_logger_level(
+      "", RCUTILS_LOG_SEVERITY_UNSET));
+
+  EXPECT_EQ(
+    RCUTILS_LOG_SEVERITY_UNSET,
+    rcutils_logging_get_logger_effective_level(""));
+
+  ASSERT_EQ(
+    RCUTILS_RET_OK,
+    rcutils_logging_set_logger_level(
+      "", original_root_severity));
+}
+
+TEST(TestLogging, test_logging_macro_thread_safety)
+{
+  // This tests whether or not using logging macros from multiple threads is safe or not.
+
+  // This test is based on an issue found in the optimization of the logging macros,
+  // and therefore has a very specific trigger scenario, which is described more
+  // in the steps below.
+  // See: https://github.com/ros2/rcutils/pull/393
+
+  // This test is likely to be flakey false-positive, meaning it's possible that
+  // it will pass even if the macros are not thread-safe and may require running
+  // repeatedly to detect problems.
+
+  ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
+  OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
+  {
+    EXPECT_EQ(RCUTILS_RET_OK, rcutils_logging_shutdown());
+  });
+
+  // One of the loggers needs to be set "by the user" to trigger the optimization.
+  ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_set_logger_level("", RCUTILS_LOG_SEVERITY_DEBUG));
+
+  // In threads, in a loop do a log call on many different logger names.
+  // The message doesn't matter.
+  std::size_t loop_count = 10;
+  auto task = [&loop_count](std::size_t thread_number) {
+      for (std::size_t i = 0; i < loop_count; ++i) {
+        rcutils_log_location_t location = {"func", "file", 42u};
+        rcutils_log(
+          &location,
+          RCUTILS_LOG_SEVERITY_DEBUG,
+          ("some_logger_name" + std::to_string(thread_number * i)).c_str(),
+          "message %d", 11);
+      }
+    };
+
+  // Create many thread to increase the chance of collisions.
+  std::vector<std::thread> threads;
+  std::size_t number_of_threads = std::thread::hardware_concurrency() * 10;
+  for (std::size_t i = 0; i < number_of_threads; ++i) {
+    threads.emplace_back(task, i + 1);
+  }
+
+  // Wait for threads to complete.
+  for (auto & thread : threads) {
+    thread.join();
+  }
 }
