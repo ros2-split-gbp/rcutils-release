@@ -22,7 +22,14 @@
 #include "osrf_testing_tools_cpp/scope_exit.hpp"
 #include "rcutils/logging.h"
 
-TEST(TestLoggingCustomEnv, test_logging) {
+#ifdef RMW_IMPLEMENTATION
+# define CLASSNAME_(NAME, SUFFIX) NAME ## __ ## SUFFIX
+# define CLASSNAME(NAME, SUFFIX) CLASSNAME_(NAME, SUFFIX)
+#else
+# define CLASSNAME(NAME, SUFFIX) NAME
+#endif
+
+TEST(CLASSNAME(TestLoggingCustomEnv, RMW_IMPLEMENTATION), test_logging) {
   EXPECT_FALSE(g_rcutils_logging_initialized);
   ASSERT_EQ(RCUTILS_RET_OK, rcutils_logging_initialize());
   OSRF_TESTING_TOOLS_CPP_SCOPE_EXIT(
@@ -30,7 +37,7 @@ TEST(TestLoggingCustomEnv, test_logging) {
     EXPECT_EQ(RCUTILS_RET_OK, rcutils_logging_shutdown());
   });
   EXPECT_TRUE(g_rcutils_logging_initialized);
-  rcutils_logging_set_default_logger_level(RCUTILS_LOG_SEVERITY_DEBUG);
+  g_rcutils_logging_default_logger_level = RCUTILS_LOG_SEVERITY_DEBUG;
 
   rcutils_ret_t ret;
   rcutils_allocator_t allocator = rcutils_get_default_allocator();
@@ -49,7 +56,7 @@ TEST(TestLoggingCustomEnv, test_logging) {
   EXPECT_EQ(RCUTILS_RET_OK, rcutils_char_array_fini(&msg_buf));
 }
 
-TEST(TestLoggingCustomEnv, test_logging_with_buffering_issues) {
+TEST(CLASSNAME(TestLoggingCustomEnv, RMW_IMPLEMENTATION), test_logging_with_buffering_issues) {
   auto mock = mocking_utils::patch("lib:rcutils", setvbuf, [](auto && ...) {return -1;});
   EXPECT_FALSE(g_rcutils_logging_initialized);
   EXPECT_EQ(RCUTILS_RET_ERROR, rcutils_logging_initialize());
