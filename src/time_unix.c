@@ -16,54 +16,57 @@
 # error time_unix.c is not intended to be used with win32 based systems
 #endif  // defined(_WIN32)
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 #include "rcutils/time.h"
 
-#if defined(__MACH__)
+#if defined(__MACH__) && defined(__APPLE__)
 #include <mach/clock.h>
 #include <mach/mach.h>
-#endif  // defined(__MACH__)
+#endif  // defined(__MACH__) && defined(__APPLE__)
 #include <math.h>
+
+#if defined(__ZEPHYR__)
+#include <version.h>
+#if ZEPHYR_VERSION_CODE >= ZEPHYR_VERSION(3, 1, 0)
+#include <zephyr/posix/time.h>  //  Points to Zephyr toolchain posix time implementation
+#else
+#include <posix/time.h>  //  Points to Zephyr toolchain posix time implementation
+#endif
+#else  //  #if KERNELVERSION >= ZEPHYR_VERSION(3, 1, 0)
 #include <time.h>
+#endif  //  defined(__ZEPHYR__)
+
+#include <errno.h>
 #include <unistd.h>
 
-#include "./common.h"
 #include "rcutils/allocator.h"
 #include "rcutils/error_handling.h"
 
-#if !defined(__MACH__)  // Assume clock_get_time is available on OS X.
-// This id an appropriate check for clock_gettime() according to:
+#if !defined(__MACH__) && !defined(__APPLE__)   // Assume clock_get_time is available on OS X.
+// This is an appropriate check for clock_gettime() according to:
 //   http://man7.org/linux/man-pages/man2/clock_gettime.2.html
 # if !defined(_POSIX_TIMERS) || !_POSIX_TIMERS
 #  error no monotonic clock function available
 # endif  // !defined(_POSIX_TIMERS) || !_POSIX_TIMERS
-#endif  // !defined(__MACH__)
+#endif  // !defined(__MACH__) && !defined(__APPLE__)
 
-#define __WOULD_BE_NEGATIVE(seconds, subseconds) (seconds < 0 || (subseconds < 0 && seconds == 0))
+static inline bool would_be_negative(const struct timespec * const now)
+{
+  return now->tv_sec < 0 || (now->tv_nsec < 0 && now->tv_sec == 0);
+}
 
 rcutils_ret_t
 rcutils_system_time_now(rcutils_time_point_value_t * now)
 {
   RCUTILS_CHECK_ARGUMENT_FOR_NULL(now, RCUTILS_RET_INVALID_ARGUMENT);
   struct timespec timespec_now;
-#if defined(__MACH__)
-  // On OS X use clock_get_time.
-  clock_serv_t cclock;
-  mach_timespec_t mts;
-  host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
-  clock_get_time(cclock, &mts);
-  mach_port_deallocate(mach_task_self(), cclock);
-  timespec_now.tv_sec = mts.tv_sec;
-  timespec_now.tv_nsec = mts.tv_nsec;
-#else  // defined(__MACH__)
-  // Otherwise use clock_gettime.
-  clock_gettime(CLOCK_REALTIME, &timespec_now);
-#endif  // defined(__MACH__)
-  if (__WOULD_BE_NEGATIVE(timespec_now.tv_sec, timespec_now.tv_nsec)) {
+  // Using clock_gettime(CLOCK_REALTIME) matches what both Linux and macOS use.
+  // For macOS, see the clang implementation at
+  // (https://github.com/llvm/llvm-project/blob/baebe12ad0d6f514cd33e418d6504075d3e79c0a/libcxx/src/chrono.cpp)
+  if (clock_gettime(CLOCK_REALTIME, &timespec_now) < 0) {
+    RCUTILS_SET_ERROR_MSG_WITH_FORMAT_STRING("Failed to get system time: %d", errno);
+    return RCUTILS_RET_ERROR;
+  }
+  if (would_be_negative(&timespec_now)) {
     RCUTILS_SET_ERROR_MSG("unexpected negative time");
     return RCUTILS_RET_ERROR;
   }
@@ -75,33 +78,23 @@ rcutils_ret_t
 rcutils_steady_time_now(rcutils_time_point_value_t * now)
 {
   RCUTILS_CHECK_ARGUMENT_FOR_NULL(now, RCUTILS_RET_INVALID_ARGUMENT);
-  // If clock_gettime is available or on OS X, use a timespec.
   struct timespec timespec_now;
-#if defined(__MACH__)
-  // On OS X use clock_get_time.
-  clock_serv_t cclock;
-  mach_timespec_t mts;
-  host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
-  clock_get_time(cclock, &mts);
-  mach_port_deallocate(mach_task_self(), cclock);
-  timespec_now.tv_sec = mts.tv_sec;
-  timespec_now.tv_nsec = mts.tv_nsec;
-#else  // defined(__MACH__)
-  // Otherwise use clock_gettime.
-#if defined(CLOCK_MONOTONIC_RAW)
-  clock_gettime(CLOCK_MONOTONIC_RAW, &timespec_now);
-#else  // defined(CLOCK_MONOTONIC_RAW)
-  clock_gettime(CLOCK_MONOTONIC, &timespec_now);
-#endif  // defined(CLOCK_MONOTONIC_RAW)
-#endif  // defined(__MACH__)
-  if (__WOULD_BE_NEGATIVE(timespec_now.tv_sec, timespec_now.tv_nsec)) {
+  clockid_t monotonic_clock = CLOCK_MONOTONIC;
+
+#if defined(__MACH__) && defined(__APPLE__)
+  // On macOS, use CLOCK_MONOTONIC_RAW, which matches the clang implementation
+  // (https://github.com/llvm/llvm-project/blob/baebe12ad0d6f514cd33e418d6504075d3e79c0a/libcxx/src/chrono.cpp)
+  monotonic_clock = CLOCK_MONOTONIC_RAW;
+#endif  // defined(__MACH__) && defined(__APPLE__)
+
+  if (clock_gettime(monotonic_clock, &timespec_now) < 0) {
+    RCUTILS_SET_ERROR_MSG_WITH_FORMAT_STRING("Failed to get steady time: %d", errno);
+    return RCUTILS_RET_ERROR;
+  }
+  if (would_be_negative(&timespec_now)) {
     RCUTILS_SET_ERROR_MSG("unexpected negative time");
     return RCUTILS_RET_ERROR;
   }
   *now = RCUTILS_S_TO_NS((int64_t)timespec_now.tv_sec) + timespec_now.tv_nsec;
   return RCUTILS_RET_OK;
 }
-
-#ifdef __cplusplus
-}
-#endif

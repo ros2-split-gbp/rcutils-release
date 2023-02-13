@@ -2,11 +2,15 @@
 <?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="2">
   <name>rcutils</name>
-  <version>4.0.4</version>
+  <version>6.1.0</version>
   <description>Package containing various utility types and functions for C</description>
-  <maintainer email="clalancette@openrobotics.org">Chris Lalancette</maintainer>
+
   <maintainer email="alejandro@openrobotics.org">Alejandro Hernandez Cordero</maintainer>
+  <maintainer email="clalancette@openrobotics.org">Chris Lalancette</maintainer>
+  <maintainer email="william@openrobotics.org">William Woodall</maintainer>
+
   <license>Apache License 2.0</license>
+
   <author email="karsten@osrfoundation.org">Karsten Knese</author>
 
   <buildtool_depend>ament_cmake_ros</buildtool_depend>
