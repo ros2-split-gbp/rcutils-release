@@ -6,9 +6,9 @@ project(rcutils)
 if(NOT CMAKE_C_STANDARD)
   set(CMAKE_C_STANDARD 11)
 endif()
-# Default to C++14
+# Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
 
 include(CheckLibraryExists)
@@ -63,6 +63,7 @@ set(rcutils_sources
   src/process.c
   src/qsort.c
   src/repl_str.c
+  src/sha256.c
   src/shared_library.c
   src/snprintf.c
   src/split.c
@@ -143,16 +144,18 @@ install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}
   RUNTIME DESTINATION bin)
 
 if(BUILD_TESTING)
-  if(NOT WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-  endif()
-
   find_package(performance_test_fixture REQUIRED)
 
   find_package(ament_cmake_gmock REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_cmake_pytest REQUIRED)
   find_package(ament_lint_auto REQUIRED)
+  # cppcheck 1.90 doesn't understand some of the syntax in remove_noexcept.hpp
+  # Since we already have cppcheck disabled on Linux, just disable it completely
+  # for this package.
+  list(APPEND AMENT_LINT_AUTO_EXCLUDE
+    ament_cmake_cppcheck
+  )
   ament_lint_auto_find_test_dependencies()
 
   find_package(launch_testing_ament_cmake REQUIRED)
@@ -358,6 +361,13 @@ if(BUILD_TESTING)
   )
   if(TARGET test_repl_str)
     target_link_libraries(test_repl_str ${PROJECT_NAME})
+  endif()
+
+  ament_add_gtest(test_sha256
+    test/test_sha256.cpp
+  )
+  if(TARGET test_sha256)
+    target_link_libraries(test_sha256 ${PROJECT_NAME})
   endif()
 
   macro(add_dummy_shared_library target)
