@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// \file
-
 #ifndef RCUTILS__LOGGING_H_
 #define RCUTILS__LOGGING_H_
 
@@ -33,7 +31,7 @@ extern "C"
 {
 #endif
 
-/// The separator used when logging node names.
+#define RCUTILS_LOGGING_SEPARATOR_CHAR '.'
 #define RCUTILS_LOGGING_SEPARATOR_STRING "."
 
 /**
@@ -92,13 +90,13 @@ extern bool g_rcutils_logging_initialized;
  * Lock-Free          | Yes
  *
  * \param[in] allocator rcutils_allocator_t to be used.
- * \return #RCUTILS_RET_OK if successful, or
- * \return #RCUTILS_RET_INVALID_ARGUMENT if the allocator is invalid, in which
- *   case initialization will fail, or
- * \return #RCUTILS_RET_INVALID_ARGUMENT if an error occurs reading the output
+ * \return `RCUTILS_RET_OK` if successful.
+ * \return `RCUTILS_RET_INVALID_ARGUMENT` if the allocator is invalid, in which
+ *   case initialization will fail.
+ * \return `RCUTILS_RET_INVALID_ARGUMENT` if an error occurs reading the output
  *   format from the `RCUTILS_CONSOLE_OUTPUT_FORMAT` environment variable, in
- *   which case the default format will be used, or
- * \return #RCUTILS_RET_LOGGING_SEVERITY_MAP_INVALID if the internal logger
+ *   which case the default format will be used.
+ * \return `RCUTILS_RET_LOGGING_SEVERITY_MAP_INVALID` if the internal logger
  *   severity level map cannot be initialized, in which case logger severity
  *   levels will not be configurable.
  */
@@ -119,11 +117,11 @@ rcutils_ret_t rcutils_logging_initialize_with_allocator(rcutils_allocator_t allo
  * Uses Atomics       | No
  * Lock-Free          | Yes
  *
- * \return #RCUTILS_RET_OK if successful, or
- * \return #RCUTILS_RET_INVALID_ARGUMENT if an error occurs reading the output
+ * \return `RCUTILS_RET_OK` if successful.
+ * \return `RCUTILS_RET_INVALID_ARGUMENT` if an error occurs reading the output
  *   format from the `RCUTILS_CONSOLE_OUTPUT_FORMAT` environment variable, in
- *   which case the default format will be used, or
- * \return #RCUTILS_RET_LOGGING_SEVERITY_MAP_INVALID if the internal logger
+ *   which case the default format will be used.
+ * \return `RCUTILS_RET_LOGGING_SEVERITY_MAP_INVALID` if the internal logger
  *   severity level map cannot be initialized, in which case logger levels
  *   will not be configurable.
  */
@@ -144,8 +142,8 @@ rcutils_ret_t rcutils_logging_initialize(void);
  * Uses Atomics       | No
  * Lock-Free          | Yes
  *
- * \return #RCUTILS_RET_OK if successful, or
- * \return #RCUTILS_RET_LOGGING_SEVERITY_MAP_INVALID if the internal logger
+ * \return `RCUTILS_RET_OK` if successful.
+ * \return `RCUTILS_RET_LOGGING_SEVERITY_MAP_INVALID` if the internal logger
  *   severity level map cannot be finalized.
  */
 RCUTILS_PUBLIC
@@ -153,7 +151,7 @@ RCUTILS_WARN_UNUSED
 rcutils_ret_t rcutils_logging_shutdown(void);
 
 /// The structure identifying the caller location in the source code.
-typedef struct rcutils_log_location_s
+typedef struct rcutils_log_location_t
 {
   /// The name of the function containing the log call.
   const char * function_name;
@@ -164,10 +162,6 @@ typedef struct rcutils_log_location_s
 } rcutils_log_location_t;
 
 /// The severity levels of log messages / loggers.
-/**
- * Note: all logging levels have their Least Significant Bit as 0, which is used as an
- * optimization.  If adding new logging levels, ensure that the new levels keep this property.
- */
 enum RCUTILS_LOG_SEVERITY
 {
   RCUTILS_LOG_SEVERITY_UNSET = 0,  ///< The unset log level
@@ -193,11 +187,11 @@ extern const char * const g_rcutils_log_severity_names[RCUTILS_LOG_SEVERITY_FATA
  * \param[in] allocator rcutils_allocator_t to be used
  * \param[in,out] severity The severity level as a represented by the
  *   `RCUTILS_LOG_SEVERITY` enum
- * \return #RCUTILS_RET_OK if successful, or
- * \return #RCUTILS_RET_INVALID_ARGUMENT on invalid arguments, or
- * \return #RCUTILS_RET_LOGGING_SEVERITY_STRING_INVALID if unable to match
+ * \return `RCUTILS_RET_OK` if successful, or
+ * \return `RCUTILS_RET_INVALID_ARGUMENT` on invalid arguments, or
+ * \return `RCUTILS_RET_LOGGING_SEVERITY_STRING_INVALID` if unable to match
  *   string, or
- * \return #RCUTILS_RET_ERROR if an unspecified error occured.
+ * \return `RCUTILS_RET_ERROR` if an unspecified error occured
  */
 RCUTILS_PUBLIC
 RCUTILS_WARN_UNUSED
@@ -222,6 +216,10 @@ typedef void (* rcutils_logging_output_handler_t)(
   const char *,  // format
   va_list *  // args
 );
+
+/// The function pointer of the current output handler.
+RCUTILS_PUBLIC
+extern rcutils_logging_output_handler_t g_rcutils_logging_output_handler;
 
 /// Get the current output handler.
 /**
@@ -267,14 +265,14 @@ void rcutils_logging_set_output_handler(rcutils_logging_output_handler_t functio
  * Uses Atomics       | No
  * Lock-Free          | Yes
  *
+ * \return `RCUTILS_RET_OK` if successful.
+ * \return `RCUTILS_RET_BAD_ALLOC` if memory allocation error occured
  * \param[in] location The location information about where the log came from
  * \param[in] severity The severity of the log message expressed as an integer
  * \param[in] name The name of the logger that this message came from
  * \param[in] timestamp The time at which the log message was generated
  * \param[in] msg The message being logged
  * \param[out] logging_output An output buffer for the formatted message
- * \return #RCUTILS_RET_OK if successful.
- * \return #RCUTILS_RET_BAD_ALLOC if memory allocation error occured
  */
 RCUTILS_PUBLIC
 RCUTILS_WARN_UNUSED
@@ -282,6 +280,16 @@ rcutils_ret_t rcutils_logging_format_message(
   const rcutils_log_location_t * location,
   int severity, const char * name, rcutils_time_point_value_t timestamp,
   const char * msg, rcutils_char_array_t * logging_output);
+
+/// The default severity level for loggers.
+/**
+ * This level is used for (1) nameless log calls and (2) named log
+ * calls where the effective level of the logger name is unspecified.
+ *
+ * \see rcutils_logging_get_logger_effective_level()
+ */
+RCUTILS_PUBLIC
+extern int g_rcutils_logging_default_logger_level;
 
 /// Get the default level for loggers.
 /**
@@ -335,7 +343,7 @@ void rcutils_logging_set_default_logger_level(int level);
  * \param[in] name The name of the logger, must be null terminated c string
  * \return The level of the logger if it has been set, or
  * \return `RCUTILS_LOG_SEVERITY_UNSET` if unset, or
- * \return the default logger level for an empty name, or
+ * \return `g_rcutils_logging_default_logger_level` for an empty name, or
  * \return -1 on invalid arguments, or
  * \return -1 if an error occurred
  */
@@ -360,7 +368,7 @@ int rcutils_logging_get_logger_level(const char * name);
  * \param[in] name_length Logger name length
  * \return The level of the logger if it has been set, or
  * \return `RCUTILS_LOG_SEVERITY_UNSET` if unset, or
- * \return the default logger level for an empty name, or
+ * \return `g_rcutils_logging_default_logger_level` for `name_length` of `0`, or
  * \return -1 on invalid arguments, or
  * \return -1 if an error occurred
  */
@@ -370,7 +378,8 @@ int rcutils_logging_get_logger_leveln(const char * name, size_t name_length);
 
 /// Set the severity level for a logger.
 /**
- * If an empty string is specified as the name, the default logger level will be set.
+ * If an empty string is specified as the name, the
+ * `g_rcutils_logging_default_logger_level` will be set.
  *
  * <hr>
  * Attribute          | Adherence
@@ -404,8 +413,7 @@ rcutils_ret_t rcutils_logging_set_logger_level(const char * name, int level);
  * \param[in] name The name of the logger, must be null terminated c string or NULL.
  * \param[in] severity The severity level.
  *
- * \return `true` if the logger is enabled for the level, or
- * \return `false` otherwise.
+ * \return true if the logger is enabled for the level; false otherwise.
  */
 RCUTILS_PUBLIC
 RCUTILS_WARN_UNUSED
@@ -440,15 +448,10 @@ RCUTILS_PUBLIC
 RCUTILS_WARN_UNUSED
 int rcutils_logging_get_logger_effective_level(const char * name);
 
-/// Internal call to log a message.
+/// Log a message.
 /**
- * Unconditionally log a message.
- * This is an internal function, and assumes that the caller has already called
- * rcutils_logging_logger_is_enabled_for().
- * End-user software should never call this, and instead should call rcutils_log()
- * or one of the RCUTILS_LOG_ macros.
- *
- * The attributes of this function are influenced by the currently set output handler.
+ * The attributes of this function are also being influenced by the currently
+ * set output handler.
  *
  * <hr>
  * Attribute          | Adherence
@@ -466,58 +469,13 @@ int rcutils_logging_get_logger_effective_level(const char * name);
  * \param[in] ... The variable arguments
  */
 RCUTILS_PUBLIC
-void rcutils_log_internal(
-  const rcutils_log_location_t * location,
-  int severity,
-  const char * name,
-  const char * format,
-  ...)
-/// @cond Doxygen_Suppress
-RCUTILS_ATTRIBUTE_PRINTF_FORMAT(4, 5)
-/// @endcond
-;
-
-/// Log a message.
-/**
- * The attributes of this function are influenced by the currently set output handler.
- *
- * <hr>
- * Attribute          | Adherence
- * ------------------ | -------------
- * Allocates Memory   | No, for formatted outputs <= 1023 characters
- *                    | Yes, for formatted outputs >= 1024 characters
- * Thread-Safe        | Yes, with itself [1]
- * Uses Atomics       | No
- * Lock-Free          | Yes
- * <i>[1] should be thread-safe with itself but not with other logging functions</i>
- *
- * This should be thread-safe with itself, but is not thread-safe with other
- * logging functions that do things like set logger levels.
- *
- * \todo There are no thread-safety gurantees between this function and other
- *   logging functions in rcutils, even though it is likely users are calling
- *   them concurrently today.
- *   We need to revisit these functions with respect to this issue and make
- *   guarantees where we can, and change functions higher in the stack to
- *   provide the thread-safety where we cannot.
- *
- * \param[in] location The pointer to the location struct or NULL
- * \param[in] severity The severity level
- * \param[in] name The name of the logger, must be null terminated c string or NULL
- * \param[in] format The format string
- * \param[in] ... The variable arguments
- */
-RCUTILS_PUBLIC
 void rcutils_log(
   const rcutils_log_location_t * location,
   int severity,
   const char * name,
   const char * format,
   ...)
-/// @cond Doxygen_Suppress
-RCUTILS_ATTRIBUTE_PRINTF_FORMAT(4, 5)
-/// @endcond
-;
+RCUTILS_ATTRIBUTE_PRINTF_FORMAT(4, 5);
 
 /// The default output handler outputs log messages to the standard streams.
 /**
@@ -558,18 +516,17 @@ void rcutils_logging_console_output_handler(
  * All logging macros ensure that this has been called once.
  */
 #define RCUTILS_LOGGING_AUTOINIT \
-  do { \
-    if (RCUTILS_UNLIKELY(!g_rcutils_logging_initialized)) { \
-      if (rcutils_logging_initialize() != RCUTILS_RET_OK) { \
-        RCUTILS_SAFE_FWRITE_TO_STDERR( \
-          "[rcutils|" __FILE__ ":" RCUTILS_STRINGIFY(__LINE__) \
-          "] error initializing logging: "); \
-        RCUTILS_SAFE_FWRITE_TO_STDERR(rcutils_get_error_string().str); \
-        RCUTILS_SAFE_FWRITE_TO_STDERR("\n"); \
-        rcutils_reset_error(); \
-      } \
+  if (RCUTILS_UNLIKELY(!g_rcutils_logging_initialized)) { \
+    rcutils_ret_t ret = rcutils_logging_initialize(); \
+    if (ret != RCUTILS_RET_OK) { \
+      RCUTILS_SAFE_FWRITE_TO_STDERR( \
+        "[rcutils|" __FILE__ ":" RCUTILS_STRINGIFY(__LINE__) \
+        "] error initializing logging: "); \
+      RCUTILS_SAFE_FWRITE_TO_STDERR(rcutils_get_error_string().str); \
+      RCUTILS_SAFE_FWRITE_TO_STDERR("\n"); \
+      rcutils_reset_error(); \
     } \
-  } while (0)
+  }
 
 #ifdef __cplusplus
 }

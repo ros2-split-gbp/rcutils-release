@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// @file
-
 #ifndef RCUTILS__MACROS_H_
 #define RCUTILS__MACROS_H_
 
@@ -23,14 +21,12 @@ extern "C"
 #endif
 
 #ifndef _WIN32
-/// A macro to make the compiler warn when the return value of a function is not used.
 #define RCUTILS_WARN_UNUSED __attribute__((warn_unused_result))
 #else
-/// A macro to make the compiler warn when the return value of a function is not used.
 #define RCUTILS_WARN_UNUSED _Check_return_
 #endif
 
-/// \cond Doxygen_Suppress
+// Note: this block was migrated from rmw/macros.h
 // This block either sets RCUTILS_THREAD_LOCAL or RCUTILS_THREAD_LOCAL_PTHREAD.
 #if defined _WIN32 || defined __CYGWIN__
 // Windows or Cygwin
@@ -66,13 +62,10 @@ extern "C"
 
 #define RCUTILS_STRINGIFY_IMPL(x) #x
 #define RCUTILS_STRINGIFY(x) RCUTILS_STRINGIFY_IMPL(x)
-
-/// A macro to mark an argument or variable as unused.
 #define RCUTILS_UNUSED(x) (void)(x)
 
 #define RCUTILS_JOIN_IMPL(arg1, arg2) arg1 ## arg2
 #define RCUTILS_JOIN(arg1, arg2) RCUTILS_JOIN_IMPL(arg1, arg2)
-/// @endcond
 
 #if defined _WIN32 || defined __CYGWIN__
 /// Macro to annotate printf-like functions on Linux. Disabled on Windows.
@@ -86,12 +79,11 @@ extern "C"
  * https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html
  *
  * For the following function:
- * ```
  * int snprintf(char *str, size_t size, const char *format, ...);
  *              ^^^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^  ^^^
  *              ARG 1      ARG 2        ARG 3               ARG 4
  *                                      format string       first optional argument
- * ```
+ *
  * format_string_index value would be 3, first_to_check_index value would be 4.
  *
  * IMPORTANT: the first argument has an index of ONE (not zero!).
@@ -140,19 +132,6 @@ extern "C"
  * No op since Windows doesn't support providing branch prediction information.
  */
 # define RCUTILS_UNLIKELY(x) (x)
-#endif  // _WIN32
-
-// Provide the compiler a hint about an argument being nonnull when possible.
-#ifndef _WIN32
-# define RCUTILS_NONNULL __attribute__((__nonnull__))
-# define RCUTILS_NONNULL_ARGS(...) __attribute__((__nonnull__(__VA_ARGS__)))
-# define RCUTILS_RETURNS_NONNULL __attribute__((__returns_nonnull__))
-# define RCUTILS_HAS_NONNULL 1
-#else
-# define RCUTILS_NONNULL
-# define RCUTILS_NONNULL_ARGS(...)
-# define RCUTILS_RETURNS_NONNULL
-# define RCUTILS_HAS_NONNULL 0
 #endif  // _WIN32
 
 #if defined RCUTILS_ENABLE_FAULT_INJECTION

@@ -26,14 +26,6 @@
 #include <windows.h>
 #endif
 
-#ifdef _GNU_SOURCE
-#include <features.h>
-#if __GLIBC__ <= 2 && __GLIBC_MINOR__ < 33
-#define _GLIBC_LESS_2_33_
-#endif
-#endif
-
-#include <functional>
 #include <map>
 #include <string>
 #include <type_traits>
@@ -93,17 +85,7 @@ public:
   : opendir_mock_(
       MOCKING_UTILS_FILESYSTEM_PATCH_TARGET(scope, opendir),
       MOCKING_UTILS_PATCH_PROXY(opendir)),
-#if defined(_GNU_SOURCE) && defined(_GLIBC_LESS_2_33_)
-// Deal with binary API less than 2.33 quirks in GNU Linux.
-    __xstat_mock_(
-      MOCKING_UTILS_FILESYSTEM_PATCH_TARGET(scope, __xstat),
-      MOCKING_UTILS_PATCH_PROXY(__xstat))
-  {
-    __xstat_mock_.then_call(
-      std::bind(
-        &FileSystem::do___xstat, this, std::placeholders::_1,
-        std::placeholders::_2, std::placeholders::_3));
-#else
+#ifndef _GNU_SOURCE
     stat_mock_(
       MOCKING_UTILS_FILESYSTEM_PATCH_TARGET(scope, stat),
       MOCKING_UTILS_PATCH_PROXY(stat))
@@ -112,6 +94,16 @@ public:
       std::bind(
         &FileSystem::do_stat, this,
         std::placeholders::_1, std::placeholders::_2));
+#else
+    // Deal with binary API quirks in GNU Linux.
+    __xstat_mock_(
+      MOCKING_UTILS_FILESYSTEM_PATCH_TARGET(scope, __xstat),
+      MOCKING_UTILS_PATCH_PROXY(__xstat))
+  {
+    __xstat_mock_.then_call(
+      std::bind(
+        &FileSystem::do___xstat, this, std::placeholders::_1,
+        std::placeholders::_2, std::placeholders::_3));
 #endif
     opendir_mock_.then_call(std::bind(&FileSystem::do_opendir, this, std::placeholders::_1));
   }
@@ -145,11 +137,11 @@ private:
   }
   MOCKING_UTILS_PATCH_TYPE(ID, opendir) opendir_mock_;
 
-#if defined(_GNU_SOURCE) && defined(_GLIBC_LESS_2_33_)
-  int do___xstat(int, const char * path, struct stat * info)
+#ifndef _GNU_SOURCE
+  int do_stat(const char * path, struct stat * info)
   {
 #else
-  int do_stat(const char * path, struct stat * info)
+  int do___xstat(int, const char * path, struct stat * info)
   {
 #endif
     if (files_info_.count(path) == 0) {
@@ -160,10 +152,10 @@ private:
     return 0;
   }
 
-#if defined(_GNU_SOURCE) && defined(_GLIBC_LESS_2_33_)
-  MOCKING_UTILS_PATCH_TYPE(ID, __xstat) __xstat_mock_;
-#else
+#ifndef _GNU_SOURCE
   MOCKING_UTILS_PATCH_TYPE(ID, stat) stat_mock_;
+#else
+  MOCKING_UTILS_PATCH_TYPE(ID, __xstat) __xstat_mock_;
 #endif
 
   int forced_errno_{0};

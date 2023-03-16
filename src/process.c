@@ -42,7 +42,6 @@ extern "C"
 #include "rcutils/allocator.h"
 #include "rcutils/error_handling.h"
 #include "rcutils/process.h"
-#include "rcutils/strdup.h"
 
 int rcutils_get_pid(void)
 {
@@ -60,7 +59,7 @@ char * rcutils_get_executable_name(rcutils_allocator_t allocator)
 
 #if defined __APPLE__ || defined __FreeBSD__ || (defined __ANDROID__ && __ANDROID_API__ >= 21)
   const char * appname = getprogname();
-#elif defined __GNUC__ && !defined(__QNXNTO__) && !defined(__OHOS__)
+#elif defined __GNUC__ && !defined(__QNXNTO__)
   const char * appname = program_invocation_name;
 #elif defined _WIN32 || defined __CYGWIN__
   char appname[MAX_PATH];
@@ -68,7 +67,7 @@ char * rcutils_get_executable_name(rcutils_allocator_t allocator)
   if (size == 0) {
     return NULL;
   }
-#elif defined __QNXNTO__ || defined __OHOS__
+#elif defined __QNXNTO__
   extern char * __progname;
   const char * appname = __progname;
 #else
@@ -87,11 +86,13 @@ char * rcutils_get_executable_name(rcutils_allocator_t allocator)
   // Get just the executable name (Unix may return the absolute path)
 #if defined __APPLE__ || defined __FreeBSD__ || defined __GNUC__
   // We need an intermediate copy because basename may modify its arguments
-  char * intermediate = rcutils_strdup(appname, allocator);
+  char * intermediate = allocator.allocate(applen + 1, allocator.state);
   if (NULL == intermediate) {
     allocator.deallocate(executable_name, allocator.state);
     return NULL;
   }
+  memcpy(intermediate, appname, applen);
+  intermediate[applen] = '\0';
 
   char * bname = basename(intermediate);
   size_t baselen = strlen(bname);

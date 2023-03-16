@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// \file
-
 #ifndef RCUTILS__STRDUP_H_
 #define RCUTILS__STRDUP_H_
 
@@ -38,8 +36,7 @@ extern "C"
  *
  * \param[in] str null terminated c string to be duplicated
  * \param[in] allocator the allocator to use for allocation
- * \return duplicated string, or
- * \return `NULL` if there is an error.
+ * \returns duplicated string or null if there is an error
  */
 RCUTILS_PUBLIC
 RCUTILS_WARN_UNUSED
@@ -54,22 +51,21 @@ rcutils_strdup(const char * str, rcutils_allocator_t allocator);
  * The returned string should be deallocated using the given allocator when
  * it is no longer needed.
  *
- * The max_length given does not include the null terminating character.
- * Therefore a max_length of 0 will still result in a duplicated string, but
+ * The string_length given does not include the null terminating character.
+ * Therefore a string_length of 0 will still result in a duplicated string, but
  * the string will be an empty string of strlen 0, but it still must be
  * deallocated.
  * All returned strings are null terminated.
  *
  * \param[in] str null terminated c string to be duplicated
- * \param[in] max_length maximum length of the string to duplicate
+ * \param[in] string_length length of the string to duplicate
  * \param[in] allocator the allocator to use for allocation
- * \return duplicated string, or
- * \return `NULL` if there is an error.
+ * \returns duplicated string or null if there is an error
  */
 RCUTILS_PUBLIC
 RCUTILS_WARN_UNUSED
 char *
-rcutils_strndup(const char * str, size_t max_length, rcutils_allocator_t allocator);
+rcutils_strndup(const char * str, size_t string_length, rcutils_allocator_t allocator);
 
 #ifdef __cplusplus
 }
