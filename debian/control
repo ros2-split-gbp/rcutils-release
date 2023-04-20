@@ -1,0 +1,12 @@
+Source: ros-iron-rcutils
+Section: misc
+Priority: optional
+Maintainer: Alejandro Hernandez Cordero <alejandro@openrobotics.org>
+Build-Depends: debhelper (>= 9.0.0), libatomic1, python3-empy, ros-iron-ament-cmake-gmock <!nocheck>, ros-iron-ament-cmake-gtest <!nocheck>, ros-iron-ament-cmake-pytest <!nocheck>, ros-iron-ament-cmake-ros, ros-iron-ament-lint-auto <!nocheck>, ros-iron-ament-lint-common <!nocheck>, ros-iron-launch <!nocheck>, ros-iron-launch-testing <!nocheck>, ros-iron-launch-testing-ament-cmake <!nocheck>, ros-iron-mimick-vendor <!nocheck>, ros-iron-osrf-testing-tools-cpp <!nocheck>, ros-iron-performance-test-fixture <!nocheck>, ros-iron-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-iron-rcutils
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libatomic1, ros-iron-ros-workspace
+Description: Package containing various utility types and functions for C
