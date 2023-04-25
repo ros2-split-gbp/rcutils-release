@@ -1,0 +1,12 @@
+Source: ros-humble-rcutils
+Section: misc
+Priority: optional
+Maintainer: Chris Lalancette <clalancette@openrobotics.org>
+Build-Depends: debhelper (>= 9.0.0), libatomic1, python3-empy, ros-humble-ament-cmake-gmock <!nocheck>, ros-humble-ament-cmake-gtest <!nocheck>, ros-humble-ament-cmake-pytest <!nocheck>, ros-humble-ament-cmake-ros, ros-humble-ament-lint-auto <!nocheck>, ros-humble-ament-lint-common <!nocheck>, ros-humble-launch <!nocheck>, ros-humble-launch-testing <!nocheck>, ros-humble-launch-testing-ament-cmake <!nocheck>, ros-humble-mimick-vendor <!nocheck>, ros-humble-osrf-testing-tools-cpp <!nocheck>, ros-humble-performance-test-fixture <!nocheck>, ros-humble-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-humble-rcutils
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libatomic1, ros-humble-ros-workspace
+Description: Package containing various utility types and functions for C
