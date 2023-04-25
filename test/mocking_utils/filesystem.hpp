@@ -33,7 +33,6 @@
 #endif
 #endif
 
-#include <functional>
 #include <map>
 #include <string>
 #include <type_traits>
